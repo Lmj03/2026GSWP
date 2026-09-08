@@ -12,3 +12,13 @@
 *.suo 
 *.db 
 
+# Resources copied into build output; keep source assets and runtime DLLs tracked.
+/Debug/Data/
+/Debug/Shaders/
+/Release/Data/
+/Release/Shaders/
+/x64/Debug/Data/
+/x64/Debug/Shaders/
+/x64/Release/Data/
+/x64/Release/Shaders/
+

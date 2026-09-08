@@ -1,0 +1,36 @@
+# 잔광 지구의 수제 청크. 등록하지 않은 바깥 구역은 좌표 기반으로 자동 생성됩니다.
+# 청크 8x8 타일 / building의 마지막 값은 간판 / npc의 마지막 값은 이름
+# 공백은 밑줄 사용. NPC 뒤에 dialogue id 평상시_문구키 기억후_문구키 지정 가능.
+version 1
+chunk 0 0
+chunk 1 0
+chunk 2 0
+chunk 0 1
+chunk 1 1
+chunk 2 1
+chunk 0 2
+chunk 1 2
+chunk 2 2
+spawn 11.6 12.2
+
+building arcadia 5.15 5.15 5.5 2.55 185 0 아르카디아
+building clinic 8.15 8.15 2.55 2.55 85 0 진료소
+building noodle 5.15 8.15 2.55 2.55 74 1 심야_국수
+building repair 8.15 13.15 2.55 2.55 105 2 패치_정비소
+building hotel 13.15 8.15 2.55 2.55 155 1 네온_호텔
+building transit 13.15 13.15 2.55 2.55 90 0 지하철
+building tower 16.15 5.15 2.55 5.5 205 0 통제_시스템
+building ramen 16.15 13.15 2.55 2.55 78 2 라멘
+building market 5.15 16.15 5.5 2.55 122 1 암시장
+building relay 13.15 16.15 2.55 2.55 112 0 중계소
+building stacks 16.15 16.15 2.55 2.55 165 1 주거동_07
+building west 0.2 8.15 2.5 2.55 150 0 공동_주거동
+building east 21.15 8.15 2.55 2.55 138 2 물류_창고
+building south 8.15 21.15 2.55 2.55 130 0 생활_구역_02
+building north 8.15 0.2 2.55 2.5 120 1 통신소
+
+npc resident 0 11.2 10.6 미나
+npc mechanic 1 10.9 13.4 패치
+npc lookout 2 13.2 11.7 조직원
+npc pedestrian 0 12.2 15.5 주민
+dialogue resident dialogue.mina.neutral dialogue.mina.remembered

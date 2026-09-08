@@ -18,7 +18,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="ReadMe.txt" />
+    <Text Include="..\docs\PROTOTYPE_GUIDE.md" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -30,6 +30,9 @@
     <ClInclude Include="Renderer.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="CityScene.h" />
+    <ClInclude Include="Resources.h" />
+    <ClInclude Include="Localization.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -41,6 +44,8 @@
     <ClCompile Include="Renderer.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="CityScene.cpp" />
+    <ClCompile Include="WorldStreaming.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\SolidRect.fs">
@@ -49,5 +54,7 @@
     <None Include="Shaders\SolidRect.vs">
       <Filter>소스 파일\Shaders</Filter>
     </None>
+    <None Include="Data\afterglow.district" />
+    <None Include="Data\Locale\ko.txt" />
   </ItemGroup>
 </Project>
