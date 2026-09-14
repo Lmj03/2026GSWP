@@ -159,9 +159,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <Text Include="..\docs\PROTOTYPE_GUIDE.md" />
+    <Text Include="..\docs\POST_PROCESSING.md" />
+    <Text Include="..\docs\LEVEL_ONE.md" />
+    <Text Include="..\docs\BASE_AND_EQUIPMENT.md" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="PostProcessing.h" />
     <ClInclude Include="CityScene.h" />
     <ClInclude Include="Resources.h" />
     <ClInclude Include="Localization.h" />
@@ -170,8 +174,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Renderer.cpp" />
+    <ClCompile Include="PostProcessing.cpp" />
     <ClCompile Include="CityScene.cpp" />
     <ClCompile Include="WorldStreaming.cpp" />
+    <ClCompile Include="LevelOne.cpp" />
+    <ClCompile Include="PlayerBase.cpp" />
     <ClCompile Include="SimpleGame.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -183,7 +190,13 @@
   <ItemGroup>
     <None Include="Shaders\SolidRect.fs" />
     <None Include="Shaders\SolidRect.vs" />
+    <None Include="Shaders\PostProcess.vs" />
+    <None Include="Shaders\BloomExtract.fs" />
+    <None Include="Shaders\GaussianBlur.fs" />
+    <None Include="Shaders\PostComposite.fs" />
+    <None Include="Data\Rendering\postprocess.cfg" />
     <None Include="Data\afterglow.district" />
+    <None Include="Data\level1.level" />
     <None Include="Data\Locale\ko.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

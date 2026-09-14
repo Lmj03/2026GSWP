@@ -19,6 +19,9 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\PROTOTYPE_GUIDE.md" />
+    <Text Include="..\docs\POST_PROCESSING.md" />
+    <Text Include="..\docs\LEVEL_ONE.md" />
+    <Text Include="..\docs\BASE_AND_EQUIPMENT.md" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -32,6 +35,7 @@
     </ClInclude>
     <ClInclude Include="CityScene.h" />
     <ClInclude Include="Resources.h" />
+    <ClInclude Include="PostProcessing.h" />
     <ClInclude Include="Localization.h" />
   </ItemGroup>
   <ItemGroup>
@@ -45,7 +49,14 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="CityScene.cpp" />
+    <ClCompile Include="PostProcessing.cpp" />
     <ClCompile Include="WorldStreaming.cpp" />
+    <ClCompile Include="LevelOne.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerBase.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\SolidRect.fs">
@@ -55,6 +66,12 @@
       <Filter>소스 파일\Shaders</Filter>
     </None>
     <None Include="Data\afterglow.district" />
+    <None Include="Data\level1.level" />
+    <None Include="Shaders\PostProcess.vs" />
+    <None Include="Shaders\BloomExtract.fs" />
+    <None Include="Shaders\GaussianBlur.fs" />
+    <None Include="Shaders\PostComposite.fs" />
+    <None Include="Data\Rendering\postprocess.cfg" />
     <None Include="Data\Locale\ko.txt" />
   </ItemGroup>
 </Project>
