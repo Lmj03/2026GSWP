@@ -64,7 +64,7 @@
 
 글씨는 직전 크기에서 기본 30% 확대했다. 측정·줄바꿈·행간에도 같은 배율을 적용한다. 기존 해상도 1280×800을 유지하고, 의뢰 패널은 기존 크기를 유지하면서 문구를 줄이고 행 위치를 조정했다. 장비 정보가 추가된 능력치 패널은 행을 늘렸다. 고정 폭보다 긴 수치·문구와 건물 간판은 영역 안에 들어가도록 확대 폭이 제한될 수 있다.
 
-구현은 `SimpleGame/PlayerBase.cpp`, `SimpleGame/LevelOne.cpp`, `SimpleGame/CityScene.cpp`에 나누고 한글 문구는 `SimpleGame/Data/Locale/ko.txt`에 모았다. 글꼴 배율은 `Renderer::TextScale`에서 조정한다.
+구현은 `SimpleGame/PlayerBase.cpp`, `SimpleGame/Progression.cpp`, `SimpleGame/Combat.cpp`, `SimpleGame/Loot.cpp`에 나누고 Actor의 갱신과 표시는 `SceneGraph`에서 호출한다. 전체 구조는 [SCENE_GRAPH.md](SCENE_GRAPH.md)를 참조한다. 한글 문구는 `SimpleGame/Data/Locale/ko.txt`에 모았다. 글꼴 배율은 `Renderer::TextScale`에서 조정한다.
 
 ## 사용자 확인 안내
 

@@ -162,11 +162,17 @@
     <Text Include="..\docs\POST_PROCESSING.md" />
     <Text Include="..\docs\LEVEL_ONE.md" />
     <Text Include="..\docs\BASE_AND_EQUIPMENT.md" />
+    <Text Include="..\docs\SCENE_GRAPH.md" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="PostProcessing.h" />
     <ClInclude Include="CityScene.h" />
+    <ClInclude Include="Actor.h" />
+    <ClInclude Include="SceneGraph.h" />
+    <ClInclude Include="GameActors.h" />
+    <ClInclude Include="GameplayTypes.h" />
+    <ClInclude Include="RenderTypes.h" />
     <ClInclude Include="Resources.h" />
     <ClInclude Include="Localization.h" />
     <ClInclude Include="stdafx.h" />
@@ -176,6 +182,17 @@
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="PostProcessing.cpp" />
     <ClCompile Include="CityScene.cpp" />
+    <ClCompile Include="Actor.cpp" />
+    <ClCompile Include="SceneGraph.cpp" />
+    <ClCompile Include="GameActors.cpp" />
+    <ClCompile Include="SceneActors.cpp" />
+    <ClCompile Include="CharacterBehavior.cpp" />
+    <ClCompile Include="Combat.cpp" />
+    <ClCompile Include="Progression.cpp" />
+    <ClCompile Include="WorldRendering.cpp" />
+    <ClCompile Include="InterfaceRendering.cpp" />
+    <ClCompile Include="CombatRendering.cpp" />
+    <ClCompile Include="Loot.cpp" />
     <ClCompile Include="WorldStreaming.cpp" />
     <ClCompile Include="LevelOne.cpp" />
     <ClCompile Include="PlayerBase.cpp" />

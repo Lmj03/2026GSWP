@@ -1,6 +1,8 @@
 #pragma once
 #include "Renderer.h"
 #include "Localization.h"
+#include "SceneGraph.h"
+#include "GameActors.h"
 #include <cstdint>
 #include <map>
 #include <set>
@@ -10,6 +12,7 @@
 class CityScene
 {
 public:
+    CityScene();
     bool Load();
     void Update(float dt, const bool* keys);
     void Draw(Renderer& renderer);
@@ -36,46 +39,46 @@ public:
     }
 
 private:
-    struct Materials
-    {
-        std::uint64_t scrap = 0;
-        std::uint64_t alloy = 0;
-        std::uint64_t fabric = 0;
-    };
+    friend class PlayerActor;
+    friend class EnemyActor;
+    friend class CitizenActor;
+    friend class BuildingActor;
+    friend class TerrainActor;
+    friend class ReflectionActor;
+    friend class LootActor;
+    friend class SupplyActor;
+    friend class BaseActor;
+    friend class AttackActor;
+    friend class WeatherActor;
+    friend class DroneActor;
+    friend class InterfaceActor;
+    friend class BaseMenuActor;
+    friend class WarningActor;
+    SceneGraph m_sceneGraph;
+    PlayerActor& m_playerActor;
+    const bool* m_input = nullptr;
+    Materials m_frameLoot;
+    unsigned int m_frameLootBundles = 0;
+    std::set<std::string> m_streamActors;
+    std::set<std::string> m_nextStreamActors;
+    void AddBuilding(Building building);
+    void AddCitizen(Citizen citizen);
+    void SetEnemies(const std::vector<Enemy>& enemies);
+    void SyncSceneGraph();
+    void UpdatePlayer(float dt);
+    void UpdateCitizen(Citizen& citizen, float dt, float phase);
+    void UpdateEnemy(Enemy& enemy, float dt);
+    void CollectLoot(Enemy& enemy, float dt);
+    void DrawTerrain(Renderer& renderer, Point origin) const;
+    void DrawReflection(Renderer& renderer, const Building& building) const;
+    void DrawSupply(Renderer& renderer) const;
+    void DrawMarker(Renderer& renderer, Point world, Color color, const std::string& key) const;
+    void DrawLoot(Renderer& renderer, const Enemy& enemy) const;
+    void DrawWarning(Renderer& renderer, const Enemy& enemy) const;
+    void DrawDrone(Renderer& renderer, Point position) const;
+    bool CanSimulate() const;
 
-    enum class Weapon
-    {
-        Fists,
-        Knife
-    };
-
-    struct Recipe
-    {
-        Materials materials;
-        std::uint64_t credits = 0;
-    };
-
-    struct Enemy
-    {
-        std::string id;
-        Point home;
-        Point position;
-        Point strike;
-        int health = 30;
-        int maxHealth = 30;
-        int experience = 2;
-        float cooldown = 0;
-        float windup = 0;
-        float flash = 0;
-        float respawn = 0;
-        bool loot = false;
-        float pickupDelay = 0;
-        Materials drop;
-        bool defeatedOnce = false;
-        bool lootedOnce = false;
-    };
-
-    std::vector<Enemy> m_enemies;
+    ActorView<EnemyActor> m_enemies;
     Point m_supply;
     Point m_attackDirection = {1, 0};
     Point m_attackVisualDirection = {1, 0};
@@ -108,7 +111,6 @@ private:
     void DrawBaseGround(Renderer& renderer) const;
     void DrawBaseProps(Renderer& renderer) const;
     void DrawBaseInterface(Renderer& renderer) const;
-    void CollectNearbyLoot(float dt);
     std::string WeaponName() const;
     std::int64_t AttackDamage() const;
     bool m_supplyOpened = false;
@@ -121,8 +123,8 @@ private:
     float m_combatNoticeTime = 0;
 
     bool LoadLevelOne();
-    void ResetLevelOne();
-    void UpdateLevelOne(float dt);
+    void ResetProgression();
+    void UpdatePlayerTimers(float dt);
     void Attack();
     bool InteractLevelOne();
     int NearbyLevelInteraction() const;
@@ -134,27 +136,10 @@ private:
     bool LevelLocal(Point world, Point& local) const;
     bool ClearReach(Point from, Point to) const;
     Point LevelObjective() const;
-    void DrawLevelGround(Renderer& renderer) const;
     void DrawEnemy(Renderer& renderer, const Enemy& enemy) const;
     void DrawAttack(Renderer& renderer) const;
     void DrawLevelHud(Renderer& renderer) const;
     void DrawLevelMap(Renderer& renderer, float left, float top, float size, float radius) const;
-
-    struct Building
-    {
-        std::string id, sign;
-        float x, y, w, d, height;
-        int palette;
-    };
-
-    struct Citizen
-    {
-        std::string id, name;
-        Point position, home;
-        int role; // 0: resident, 1: merchant, 2: lookout
-        bool remembersHelp = false;
-        std::string dialogueNeutral, dialogueRemembered;
-    };
 
     static constexpr int ChunkSize = 8;
     static constexpr int StreamRadius = 6;
@@ -174,9 +159,10 @@ private:
     std::set<std::string> m_remembered;
     Localization m_text;
     std::set<std::pair<int, int>> m_chunks;
-    std::vector<Building> m_buildings;
-    std::vector<Citizen> m_citizens;
-    Point m_spawn, m_player, m_camera;
+    ActorView<BuildingActor> m_buildings;
+    ActorView<CitizenActor> m_citizens;
+    Point m_spawn, m_camera;
+    Point& m_player;
     float m_time = 0, m_zoom = 1.15f, m_walk = 0, m_noticeTime = 0;
     float m_facing = 1;
     int m_reputation = 0;
@@ -194,7 +180,6 @@ private:
     bool CanStand(float x, float y, float radius = .18f) const;
     void Move(Point& position, float x, float y, float radius = .18f);
     int NearbyCitizen() const;
-    void DrawGround(Renderer& renderer) const;
     void DrawBuilding(Renderer& renderer, const Building& building) const;
     void DrawActor(Renderer& renderer, Point position, int role, float phase, bool friendly) const;
     void DrawWeather(Renderer& renderer) const;

@@ -90,6 +90,7 @@ void CityScene::Recenter()
 
 void CityScene::RefreshWorld()
 {
+    m_nextStreamActors.clear();
     // Keep active actors' positions; never retain every visited chunk.
     std::unordered_map<std::string, Point> positions;
     for (const Citizen& citizen : m_citizens)
@@ -121,13 +122,23 @@ void CityScene::RefreshWorld()
             citizen.position = old->second;
         }
         citizen.remembersHelp = m_remembered.count(citizen.id) != 0;
-        m_citizens.push_back(std::move(citizen));
+        AddCitizen(std::move(citizen));
     };
     for (int x = -StreamRadius; x <= StreamRadius; ++x)
     {
         for (int y = -StreamRadius; y <= StreamRadius; ++y)
         {
             m_chunks.insert({x, y});
+            const std::string terrainId =
+                "terrain/" + std::to_string(m_originX + x) + "/" + std::to_string(m_originY + y);
+            Actor* terrain = m_sceneGraph.Find(terrainId);
+            if (!terrain)
+            {
+                terrain = &m_sceneGraph.Create<TerrainActor>(terrainId, "streamed", *this);
+            }
+            terrain->SetLocalPosition(
+                {static_cast<float>(x * ChunkSize), static_cast<float>(y * ChunkSize)});
+            m_nextStreamActors.insert(terrainId);
             const ChunkKey key(m_originX + x, m_originY + y);
             const bool authored =
                 key.first >= -256 && key.first <= 256 && key.second >= -256 && key.second <= 256 &&
@@ -147,7 +158,7 @@ void CityScene::RefreshWorld()
             {
                 building.x += offsetX;
                 building.y += offsetY;
-                m_buildings.push_back(std::move(building));
+                AddBuilding(std::move(building));
             }
             for (Citizen citizen : found->second.citizens)
             {
@@ -172,7 +183,7 @@ void CityScene::RefreshWorld()
                      (building.x - static_cast<float>(cx * ChunkSize));
         building.y = static_cast<float>((cy - m_originY) * ChunkSize) +
                      (building.y - static_cast<float>(cy * ChunkSize));
-        m_buildings.push_back(std::move(building));
+        AddBuilding(std::move(building));
     }
     for (Citizen citizen : m_authoredCitizens)
     {
@@ -190,4 +201,14 @@ void CityScene::RefreshWorld()
         citizen.position = citizen.home;
         addCitizen(std::move(citizen));
     }
+    for (const std::string& id : m_streamActors)
+    {
+        if (!m_nextStreamActors.count(id))
+        {
+            m_sceneGraph.Destroy(id);
+        }
+    }
+    m_streamActors = std::move(m_nextStreamActors);
+    SyncSceneGraph();
+    m_sceneGraph.FlushDestroyed();
 }

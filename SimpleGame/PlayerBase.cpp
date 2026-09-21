@@ -12,56 +12,6 @@ const Color BaseWhite(.83f, .94f, .98f);
 const Color BaseMuted(.45f, .64f, .71f);
 }
 
-void CityScene::CollectNearbyLoot(float dt)
-{
-    Materials collected;
-    unsigned int bundles = 0;
-    for (Enemy& enemy : m_enemies)
-    {
-        if (!enemy.loot)
-        {
-            continue;
-        }
-        enemy.pickupDelay = std::max(0.f, enemy.pickupDelay - dt);
-        Point local;
-        if (enemy.pickupDelay > 0 || !LevelLocal(enemy.position, local) ||
-            std::hypot(local.x - m_player.x, local.y - m_player.y) > 1.6f ||
-            !ClearReach(m_player, local))
-        {
-            continue;
-        }
-        const auto limit = std::numeric_limits<std::uint64_t>::max();
-        if (m_bag.scrap > limit - enemy.drop.scrap || m_bag.alloy > limit - enemy.drop.alloy ||
-            m_bag.fabric > limit - enemy.drop.fabric || m_credits > limit - 8 ||
-            m_recovery == limit)
-        {
-            continue;
-        }
-        m_bag.scrap += enemy.drop.scrap;
-        m_bag.alloy += enemy.drop.alloy;
-        m_bag.fabric += enemy.drop.fabric;
-        collected.scrap += enemy.drop.scrap;
-        collected.alloy += enemy.drop.alloy;
-        collected.fabric += enemy.drop.fabric;
-        m_credits += 8;
-        ++m_recovery;
-        ++bundles;
-        enemy.loot = false;
-        enemy.lootedOnce = true;
-        enemy.drop = Materials{};
-    }
-    if (bundles > 0)
-    {
-        m_pickupNotice = m_text.Format("loot.collected",
-                                       {{"scrap", std::to_string(collected.scrap)},
-                                        {"alloy", std::to_string(collected.alloy)},
-                                        {"fabric", std::to_string(collected.fabric)},
-                                        {"credits", std::to_string(bundles * 8)},
-                                        {"recovery", std::to_string(bundles)}});
-        m_pickupNoticeTime = 4;
-    }
-}
-
 void CityScene::OpenBase()
 {
     if (m_health <= 0 || NearbyLevelInteraction() != -3)
@@ -117,7 +67,7 @@ void CityScene::UpdateBase(float dt)
     }
 }
 
-CityScene::Recipe CityScene::RecipeFor(int action) const
+Recipe CityScene::RecipeFor(int action) const
 {
     if (action == 3)
     {
