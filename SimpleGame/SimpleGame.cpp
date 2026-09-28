@@ -7,6 +7,7 @@ This program is distributed without any warranty.
 
 #include "stdafx.h"
 #include "Renderer.h"
+#include "FrameProfiler.h"
 #include "CityScene.h"
 #include "Dependencies/freeglut.h"
 #include <algorithm>
@@ -31,8 +32,11 @@ void Display()
     {
         return;
     }
+    FrameProfiler::Instance().BeginFrame();
     city.Draw(*renderer);
+    FrameProfiler::Instance().BeforeSwap();
     glutSwapBuffers();
+    FrameProfiler::Instance().EndFrame();
 }
 
 void Resize(int width, int height)
@@ -48,6 +52,7 @@ void Close()
     running = false;
     // FreeGLUT invokes this while the window's OpenGL context still exists.
     renderer.reset();
+    FrameProfiler::Instance().Finish();
 }
 
 void Timer(int)
@@ -61,6 +66,12 @@ void Timer(int)
     previous = now;
     // Do not retain movement keys when focus moves to another application.
     const bool focused = GetForegroundWindow() == gameWindow;
+    static bool wasFocused = true;
+    if (focused != wasFocused)
+    {
+        FrameProfiler::Instance().Event(focused ? "focus=1" : "focus=0");
+        wasFocused = focused;
+    }
     if (!focused)
     {
         std::fill(keys, keys + 256, false);
@@ -76,7 +87,9 @@ void Timer(int)
     }
     if (focused)
     {
+        const auto updateStart = FrameProfiler::Clock::now();
         city.Update(dt, keys);
+        FrameProfiler::Instance().AddUpdate(FrameProfiler::Milliseconds(updateStart));
     }
     glutPostRedisplay();
     glutTimerFunc(16, Timer, 0);
@@ -94,6 +107,11 @@ void KeyDown(unsigned char key, int, int)
         return;
     }
     keys[key] = true;
+    if (key == 'e' || key == 'm' || key == 'r' || key == 'h' || key == 9 || key == 27 ||
+        key == '[' || key == ']' || (key >= '1' && key <= '5'))
+    {
+        FrameProfiler::Instance().Event("action_key_code=" + std::to_string(key));
+    }
     if (city.HandleBaseInput(key))
     {
         return;
@@ -146,6 +164,7 @@ void Special(int key, int, int)
     {
         return;
     }
+    FrameProfiler::Instance().Event("special_key_code=" + std::to_string(key));
     if (key == GLUT_KEY_F2)
     {
         city.Reset();
@@ -174,6 +193,7 @@ void Special(int key, int, int)
 
 void Wheel(int, int direction, int, int)
 {
+    FrameProfiler::Instance().Event("zoom_wheel=" + std::to_string(direction));
     city.Zoom(direction);
 }
 }

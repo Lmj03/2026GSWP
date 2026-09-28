@@ -1,5 +1,7 @@
 #include "stdafx.h"
 #include "Renderer.h"
+#include "FrameProfiler.h"
+#include "MeshCache.h"
 #include "Resources.h"
 #include <algorithm>
 #include <cmath>
@@ -164,10 +166,12 @@ struct Renderer::FontCache
         auto found = images.find(text);
         if (found != images.end())
         {
+            ++FrameProfiler::Instance().Current().fontHits;
             found->second.used = frame;
             return &found->second;
         }
         Image result;
+        ++FrameProfiler::Instance().Current().fontMisses;
         result.width = std::max(1, std::min(maxTexture, Width(text) + 4));
         result.height = lineHeight + 4;
         BITMAPINFO info = {};
@@ -221,13 +225,66 @@ struct Renderer::FontCache
                      GL_UNSIGNED_BYTE,
                      coverage.data());
         glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+        FrameProfiler::Instance().Current().fontUploadBytes += coverage.size();
         result.used = frame;
         return &images.emplace(text, result).first->second;
     }
 };
 
+void Renderer::LoadBatchSettings()
+{
+    std::string source;
+    if (!ReadResource(L"Data/Rendering/batching.cfg", source))
+    {
+        FrameProfiler::Instance().Event("batching_config=missing defaults=1");
+        return;
+    }
+    std::istringstream lines(source);
+    std::string line;
+    int slots = 8, capacity = 16384, culling = 1;
+    while (std::getline(lines, line))
+    {
+        std::istringstream input(line.substr(0, line.find('#')));
+        std::string key, trailing;
+        if (!(input >> key))
+        {
+            continue;
+        }
+        int value = 0;
+        if (!(input >> value) || (input >> trailing) ||
+            (key != "texture_slots" && key != "max_instances" && key != "culling"))
+        {
+            FrameProfiler::Instance().Event("batching_config=invalid defaults=1");
+            return;
+        }
+        if (key == "texture_slots")
+        {
+            slots = value;
+        }
+        else if (key == "max_instances")
+        {
+            capacity = value;
+        }
+        else
+        {
+            culling = value;
+        }
+    }
+    if (slots < 1 || slots > 8 || capacity < 256 || capacity > 65536 || culling < 0 || culling > 1)
+    {
+        FrameProfiler::Instance().Event("batching_config=out_of_range defaults=1");
+        return;
+    }
+    m_textureSlots = slots;
+    m_batchCapacity = capacity;
+    m_culling = culling != 0;
+}
+
 Renderer::Renderer(int width, int height)
 {
+    static_assert(sizeof(Point) == 8 && sizeof(Color) == 20 && sizeof(Instance) == 60,
+                  "Instance vertex attributes require packed float fields");
+    LoadBatchSettings();
     Resize(width, height);
     std::string vs, fs;
     if (!ReadResource(L"Shaders/SolidRect.vs", vs) || !ReadResource(L"Shaders/SolidRect.fs", fs))
@@ -273,51 +330,52 @@ Renderer::Renderer(int width, int height)
         return;
     }
     glUseProgram(m_program);
-    glUniform1i(glGetUniformLocation(m_program, "u_Coverage"), 0);
+    const GLint units[] = {0, 1, 2, 3, 4, 5, 6, 7};
+    glUniform1iv(glGetUniformLocation(m_program, "u_Coverage[0]"), 8, units);
     m_linearOutput = glGetUniformLocation(m_program, "u_LinearOutput");
     m_emissionGain = glGetUniformLocation(m_program, "u_EmissionGain");
     glGenVertexArrays(1, &m_vao);
     glGenBuffers(1, &m_vbo);
+    glGenBuffers(1, &m_meshVbo);
     glBindVertexArray(m_vao);
-    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, m_meshVbo);
+    const auto mesh = LoadUnitQuad();
+    glBufferData(GL_ARRAY_BUFFER, sizeof(mesh), mesh.data(), GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1,
-                          4,
-                          GL_FLOAT,
-                          GL_FALSE,
-                          sizeof(Vertex),
-                          reinterpret_cast<void*>(offsetof(Vertex, r)));
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2,
-                          2,
-                          GL_FLOAT,
-                          GL_FALSE,
-                          sizeof(Vertex),
-                          reinterpret_cast<void*>(offsetof(Vertex, u)));
-    glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3,
-                          1,
-                          GL_FLOAT,
-                          GL_FALSE,
-                          sizeof(Vertex),
-                          reinterpret_cast<void*>(offsetof(Vertex, emission)));
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Point), nullptr);
+    glVertexAttribDivisor(0, 0);
+    BindInstanceAttributes(0);
     glBindVertexArray(0);
-    glGenTextures(1, &m_white);
-    glBindTexture(GL_TEXTURE_2D, m_white);
+    // Keep unused sampler slots complete and away from any active render target.
+    glGenTextures(1, &m_fallbackTexture);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_fallbackTexture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     const unsigned char white = 255;
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, 1, 1, 0, GL_RED, GL_UNSIGNED_BYTE, &white);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    auto& profiler = FrameProfiler::Instance();
+    profiler.Event("mesh_gpu_upload_bytes=" + std::to_string(sizeof(mesh)) +
+                   " usage=static once=1");
+    profiler.Event("batch_texture_slots=" + std::to_string(m_textureSlots) +
+                   " max_instances_per_batch=" + std::to_string(m_batchCapacity) +
+                   " culling=" + std::to_string(m_culling) +
+                   " instance_bytes=" + std::to_string(sizeof(Instance)));
+    for (GLenum key : {GL_VENDOR, GL_RENDERER, GL_VERSION})
+    {
+        const auto text = glGetString(key);
+        profiler.Event("gl_info_" + std::to_string(key) + "=" +
+                       (text ? reinterpret_cast<const char*>(text) : "unknown"));
+    }
     m_font.reset(new FontCache());
     if (!m_font->dc || !m_font->font)
     {
         std::cerr << "한글 글꼴 초기화 실패.\n";
     }
-    m_vertices.reserve(180000);
+    m_instances.reserve(32768);
+    m_batches.reserve(64);
     if (!m_post.Initialize(m_viewWidth, m_viewHeight))
     {
         std::cerr << "후처리를 초기화하지 못해 기본 렌더링으로 진행합니다.\n";
@@ -327,9 +385,13 @@ Renderer::Renderer(int width, int height)
 Renderer::~Renderer()
 {
     m_font.reset();
-    if (m_white)
+    if (m_fallbackTexture)
     {
-        glDeleteTextures(1, &m_white);
+        glDeleteTextures(1, &m_fallbackTexture);
+    }
+    if (m_meshVbo)
+    {
+        glDeleteBuffers(1, &m_meshVbo);
     }
     if (m_vbo)
     {
@@ -347,7 +409,8 @@ Renderer::~Renderer()
 
 bool Renderer::IsInitialized() const
 {
-    return m_program && m_vao && m_vbo && m_white && m_font && m_font->dc && m_font->font;
+    return m_program && m_vao && m_vbo && m_meshVbo && m_fallbackTexture && m_font && m_font->dc &&
+           m_font->font;
 }
 
 void Renderer::Resize(int width, int height)
@@ -368,14 +431,38 @@ void Renderer::Resize(int width, int height)
 
 void Renderer::Begin(Color background)
 {
-    m_vertices.clear();
+    m_instances.clear();
     m_batches.clear();
+    m_legacyStarted = false;
     if (m_font)
     {
         m_font->NextFrame();
     }
     m_overlay = false;
     m_hdrScene = m_post.Ready() && m_post.GetSettings().enabled;
+    const auto& settings = m_post.GetSettings();
+    std::ostringstream profileSettings;
+    profileSettings << "viewport=" << m_viewWidth << 'x' << m_viewHeight << " hdr=" << m_hdrScene
+                    << " bloom=" << settings.bloom
+                    << " bloom_iterations=" << settings.bloomIterations
+                    << " bloom_strength=" << settings.bloomStrength
+                    << " bloom_radius=" << settings.bloomRadius
+                    << " bloom_threshold=" << settings.bloomThreshold
+                    << " bloom_knee=" << settings.bloomKnee << " edge_blur=" << settings.edgeBlur
+                    << " edge_strength=" << settings.edgeStrength
+                    << " edge_radius=" << settings.edgeRadius
+                    << " edge_start=" << settings.edgeStart << " edge_end=" << settings.edgeEnd
+                    << " vignette=" << settings.vignette
+                    << " vignette_strength=" << settings.vignetteStrength
+                    << " vignette_start=" << settings.vignetteStart
+                    << " vignette_end=" << settings.vignetteEnd
+                    << " emission_gain=" << settings.emissionGain
+                    << " exposure=" << settings.exposure;
+    if (m_profileSettings != profileSettings.str())
+    {
+        m_profileSettings = profileSettings.str();
+        FrameProfiler::Instance().Event(m_profileSettings);
+    }
     glDisable(GL_FRAMEBUFFER_SRGB);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(m_viewX, m_viewY, m_viewWidth, m_viewHeight);
@@ -400,30 +487,76 @@ void Renderer::Begin(Color background)
     }
 }
 
+void Renderer::BindInstanceAttributes(size_t first)
+{
+    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+    const size_t base = first * sizeof(Instance);
+    const size_t offsets[] = {offsetof(Instance, a),
+                              offsetof(Instance, c),
+                              offsetof(Instance, color),
+                              offsetof(Instance, color) + offsetof(Color, emission)};
+    const GLint sizes[] = {4, 4, 4, 3};
+    for (GLuint i = 0; i < 4; ++i)
+    {
+        glEnableVertexAttribArray(i + 1);
+        glVertexAttribPointer(i + 1,
+                              sizes[i],
+                              GL_FLOAT,
+                              GL_FALSE,
+                              sizeof(Instance),
+                              reinterpret_cast<void*>(base + offsets[i]));
+        glVertexAttribDivisor(i + 1, 1);
+    }
+}
+
 void Renderer::Flush()
 {
-    if (!IsInitialized() || m_vertices.empty())
+    if (!IsInitialized() || m_instances.empty())
     {
         return;
     }
+    const auto start = FrameProfiler::Clock::now();
+    auto& profiler = FrameProfiler::Instance();
+    profiler.SetStage(m_overlay ? FrameProfiler::Stage::Overlay : FrameProfiler::Stage::World);
     glUseProgram(m_program);
     glUniform1i(m_linearOutput, m_hdrScene ? 1 : 0);
     glUniform1f(m_emissionGain, m_post.GetSettings().emissionGain);
     glBindVertexArray(m_vao);
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-    glBufferData(GL_ARRAY_BUFFER,
-                 static_cast<GLsizeiptr>(m_vertices.size() * sizeof(Vertex)),
-                 m_vertices.data(),
-                 GL_STREAM_DRAW);
-    glActiveTexture(GL_TEXTURE0);
+    const size_t bytes = m_instances.size() * sizeof(Instance);
+    if (bytes > m_gpuCapacity)
+    {
+        m_gpuCapacity = std::max(bytes, std::max(size_t(65536), m_gpuCapacity * 2));
+        profiler.Event("instance_buffer_capacity_bytes=" + std::to_string(m_gpuCapacity));
+    }
+    // Orphan the previous storage to avoid explicitly waiting for in-flight frames.
+    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_gpuCapacity), nullptr, GL_STREAM_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(bytes), m_instances.data());
+    profiler.Current().uploadBytes += bytes;
+    std::array<GLuint, 8> boundTextures = {};
     for (const Batch& batch : m_batches)
     {
-        glBindTexture(GL_TEXTURE_2D, batch.texture);
-        glDrawArrays(GL_TRIANGLES, batch.first, batch.count);
+        for (int slot = 0; slot < 8; ++slot)
+        {
+            const GLuint texture =
+                slot < batch.textureCount ? batch.textures[slot] : m_fallbackTexture;
+            if (boundTextures[slot] != texture)
+            {
+                glActiveTexture(GL_TEXTURE0 + slot);
+                glBindTexture(GL_TEXTURE_2D, texture);
+                boundTextures[slot] = texture;
+                ++profiler.Current().textureBinds;
+            }
+        }
+        // OpenGL 3.3 has no core base-instance draw; offset attribute pointers per batch.
+        BindInstanceAttributes(batch.first);
+        profiler.DrawInstances(6, batch.count);
     }
+    glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(0);
-    m_vertices.clear();
+    m_instances.clear();
     m_batches.clear();
+    profiler.Current().submitMs += FrameProfiler::Milliseconds(start);
 }
 
 void Renderer::BeginOverlay()
@@ -435,10 +568,15 @@ void Renderer::BeginOverlay()
     Flush();
     if (m_hdrScene)
     {
+        auto& profiler = FrameProfiler::Instance();
+        profiler.SetStage(FrameProfiler::Stage::Post);
+        const auto start = FrameProfiler::Clock::now();
         m_post.Present(m_viewX, m_viewY, m_viewWidth, m_viewHeight);
+        profiler.Current().postMs += FrameProfiler::Milliseconds(start);
     }
     m_hdrScene = false;
     m_overlay = true;
+    m_legacyStarted = false;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(m_viewX, m_viewY, m_viewWidth, m_viewHeight);
     glDisable(GL_FRAMEBUFFER_SRGB);
@@ -453,29 +591,82 @@ void Renderer::End()
     Flush();
 }
 
-void Renderer::UseBatch(GLuint texture, GLsizei count)
+void Renderer::Queue(Point a,
+                     Point b,
+                     Point c,
+                     Point d,
+                     Color color,
+                     GLuint texture,
+                     bool ellipse,
+                     unsigned int legacyVertices)
 {
-    if (m_batches.empty() || m_batches.back().texture != texture)
+    auto& stats = FrameProfiler::Instance().Current();
+    // Estimate the old adjacent-texture batching on the same requests, before culling.
+    if (!m_legacyStarted || m_legacyTexture != texture)
     {
-        m_batches.push_back({texture, static_cast<GLint>(m_vertices.size()), 0});
+        ++stats.legacyDraws;
+        m_legacyStarted = true;
+        m_legacyTexture = texture;
     }
-    m_batches.back().count += count;
+    stats.legacyVertices += legacyVertices;
+    const float minX = std::min({a.x, b.x, c.x, d.x});
+    const float maxX = std::max({a.x, b.x, c.x, d.x});
+    const float minY = std::min({a.y, b.y, c.y, d.y});
+    const float maxY = std::max({a.y, b.y, c.y, d.y});
+    if (m_culling && (color.a <= 0 || maxX < 0 || maxY < 0 || minX > Width || minY > Height))
+    {
+        ++stats.culled;
+        return;
+    }
+    if (m_batches.empty() || m_batches.back().count >= m_batchCapacity)
+    {
+        if (!m_batches.empty())
+        {
+            ++stats.capacitySplits;
+        }
+        Batch batch;
+        batch.first = m_instances.size();
+        m_batches.push_back(batch);
+    }
+    int slot = -1;
+    if (texture)
+    {
+        Batch* batch = &m_batches.back();
+        for (int i = 0; i < batch->textureCount; ++i)
+        {
+            if (batch->textures[i] == texture)
+            {
+                slot = i;
+                break;
+            }
+        }
+        if (slot < 0)
+        {
+            if (batch->textureCount == m_textureSlots)
+            {
+                ++stats.textureSplits;
+                Batch next;
+                next.first = m_instances.size();
+                m_batches.push_back(next);
+                batch = &m_batches.back();
+            }
+            slot = batch->textureCount++;
+            batch->textures[slot] = texture;
+        }
+    }
+    m_instances.push_back({a, b, c, d, color, static_cast<float>(slot), ellipse ? 1.f : 0.f});
+    ++m_batches.back().count;
 }
 
 void Renderer::Triangle(Point a, Point b, Point c, Color color)
 {
-    UseBatch(m_white, 3);
-    for (const Point& p : {a, b, c})
-    {
-        m_vertices.push_back(
-            {p.x, p.y, color.r, color.g, color.b, color.a, .5f, .5f, color.emission});
-    }
+    // The second triangle degenerates; no per-frame topology is created.
+    Queue(a, b, c, a, color, 0, false, 3);
 }
 
 void Renderer::Quad(Point a, Point b, Point c, Point d, Color color)
 {
-    Triangle(a, b, c, color);
-    Triangle(a, c, d, color);
+    Queue(a, b, c, d, color, 0, false, 6);
 }
 
 void Renderer::Rect(float x, float y, float width, float height, Color color)
@@ -500,14 +691,14 @@ void Renderer::Line(Point a, Point b, float width, Color color)
 
 void Renderer::Ellipse(Point center, float rx, float ry, Color color)
 {
-    for (int i = 0; i < 20; ++i)
-    {
-        const float a = i * 6.2831853f / 20, b = (i + 1) * 6.2831853f / 20;
-        Triangle(center,
-                 {center.x + std::cos(a) * rx, center.y + std::sin(a) * ry},
-                 {center.x + std::cos(b) * rx, center.y + std::sin(b) * ry},
-                 color);
-    }
+    Queue({center.x - rx, center.y - ry},
+          {center.x + rx, center.y - ry},
+          {center.x + rx, center.y + ry},
+          {center.x - rx, center.y + ry},
+          color,
+          0,
+          true,
+          60);
 }
 
 void Renderer::Glow(Point center, float rx, float ry, Color color)
@@ -533,22 +724,7 @@ void Renderer::TextLine(float x, float y, const std::wstring& text, float scale,
     const float w = image->width * factor, h = image->height * factor;
     x -= 2 * factor;
     y -= 2 * factor;
-    UseBatch(image->texture, 6);
-    const Point positions[] =
-        {{x, y}, {x + w, y}, {x + w, y + h}, {x, y}, {x + w, y + h}, {x, y + h}};
-    const Point uv[] = {{0, 0}, {1, 0}, {1, 1}, {0, 0}, {1, 1}, {0, 1}};
-    for (int i = 0; i < 6; ++i)
-    {
-        m_vertices.push_back({positions[i].x,
-                              positions[i].y,
-                              color.r,
-                              color.g,
-                              color.b,
-                              color.a,
-                              uv[i].x,
-                              uv[i].y,
-                              color.emission});
-    }
+    Queue({x, y}, {x + w, y}, {x + w, y + h}, {x, y + h}, color, image->texture, false, 6);
 }
 
 std::vector<std::wstring> Renderer::Wrap(const std::string& text, float scale, float maxWidth)

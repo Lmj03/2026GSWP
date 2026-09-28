@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "PostProcessing.h"
+#include "FrameProfiler.h"
 #include "Resources.h"
 #include <algorithm>
 #include <cmath>
@@ -395,7 +396,7 @@ void PostProcessing::Downsample(GLuint source, const Target& target, bool extrac
     glUniform1f(m_extractUniforms.threshold, m_settings.bloomThreshold);
     glUniform1f(m_extractUniforms.knee, m_settings.bloomKnee);
     glUniform1i(m_extractUniforms.extract, extract ? 1 : 0);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    FrameProfiler::Instance().DrawArrays(GL_TRIANGLES, 0, 3);
 }
 
 void PostProcessing::Blur(GLuint source, const Target& target, bool horizontal, float radius)
@@ -409,7 +410,7 @@ void PostProcessing::Blur(GLuint source, const Target& target, bool horizontal, 
     glUniform2f(m_blurUniforms.step,
                 horizontal ? radius / m_targets.halfWidth : 0.f,
                 horizontal ? 0.f : radius / m_targets.halfHeight);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    FrameProfiler::Instance().DrawArrays(GL_TRIANGLES, 0, 3);
 }
 
 void PostProcessing::Present(int x, int y, int width, int height)
@@ -466,7 +467,7 @@ void PostProcessing::Present(int x, int y, int width, int height)
                 m_settings.edgeBlur ? m_settings.edgeStrength : 0.f);
     glUniform1f(m_compositeUniforms.edgeStart, m_settings.edgeStart);
     glUniform1f(m_compositeUniforms.edgeEnd, m_settings.edgeEnd);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    FrameProfiler::Instance().DrawArrays(GL_TRIANGLES, 0, 3);
     // Restore state expected by the normal geometry/text renderer.
     glBindVertexArray(0);
     glActiveTexture(GL_TEXTURE0);

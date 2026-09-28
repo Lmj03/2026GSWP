@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <array>
 #include "PostProcessing.h"
 
 #include "RenderTypes.h"
@@ -72,29 +73,48 @@ public:
     float WrappedHeight(const std::string& text, float scale, float maxWidth);
 
 private:
-    struct Vertex
+    struct Instance
     {
-        float x, y, r, g, b, a, u, v, emission;
+        Point a, b, c, d;
+        Color color;
+        float textureSlot, ellipse;
     };
 
     struct Batch
     {
-        GLuint texture;
-        GLint first;
-        GLsizei count;
+        std::array<GLuint, 8> textures = {};
+        int textureCount = 0;
+        size_t first = 0;
+        GLsizei count = 0;
     };
     struct FontCache;
-    GLuint m_program = 0, m_vao = 0, m_vbo = 0;
-    GLuint m_white = 0;
+    GLuint m_program = 0, m_vao = 0, m_vbo = 0, m_meshVbo = 0;
+    GLuint m_fallbackTexture = 0;
     PostProcessing m_post;
     GLint m_linearOutput = -1, m_emissionGain = -1;
     int m_viewX = 0, m_viewY = 0, m_viewWidth = static_cast<int>(Width),
         m_viewHeight = static_cast<int>(Height);
     bool m_hdrScene = false, m_overlay = false;
     std::unique_ptr<FontCache> m_font;
-    std::vector<Vertex> m_vertices;
+    std::vector<Instance> m_instances;
     std::vector<Batch> m_batches;
-    void UseBatch(GLuint texture, GLsizei count);
+    size_t m_gpuCapacity = 0;
+    bool m_legacyStarted = false;
+    GLuint m_legacyTexture = 0;
+    std::string m_profileSettings;
+    int m_textureSlots = 8;
+    int m_batchCapacity = 16384;
+    bool m_culling = true;
+    void LoadBatchSettings();
+    void Queue(Point a,
+               Point b,
+               Point c,
+               Point d,
+               Color color,
+               GLuint texture,
+               bool ellipse,
+               unsigned int legacyVertices);
+    void BindInstanceAttributes(size_t first);
     void Flush();
     void TextLine(float x, float y, const std::wstring& text, float scale, Color color);
     std::vector<std::wstring> Wrap(const std::string& text, float scale, float maxWidth);

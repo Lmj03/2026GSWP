@@ -22,3 +22,8 @@
 /x64/Release/Data/
 /x64/Release/Shaders/
 
+
+# Local renderer profiling and mesh cache output.
+**/Logs/
+**/Cache/
+tools/__pycache__/

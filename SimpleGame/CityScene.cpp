@@ -408,7 +408,7 @@ bool CityScene::LevelLocal(Point world, Point& local) const
 
 bool CityScene::ClearReach(Point from, Point to) const
 {
-    const int steps = std::max(1, static_cast<int>(std::ceil(Separation(from, to) / .12f)));
+    const int steps = std::max(1, static_cast<int>(std::ceil(Distance(from, to) / .12f)));
     for (int step = 0; step <= steps; ++step)
     {
         const float t = static_cast<float>(step) / steps;

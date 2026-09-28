@@ -163,9 +163,12 @@
     <Text Include="..\docs\LEVEL_ONE.md" />
     <Text Include="..\docs\BASE_AND_EQUIPMENT.md" />
     <Text Include="..\docs\SCENE_GRAPH.md" />
+    <Text Include="..\docs\PROFILING.md" />
+    <Text Include="..\docs\performance\2026-09-22-draw-call-report.md" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="FrameProfiler.h" />
     <ClInclude Include="PostProcessing.h" />
     <ClInclude Include="CityScene.h" />
     <ClInclude Include="Actor.h" />
@@ -174,6 +177,8 @@
     <ClInclude Include="GameplayTypes.h" />
     <ClInclude Include="RenderTypes.h" />
     <ClInclude Include="Resources.h" />
+    <ClInclude Include="MeshCache.h" />
+    <ClInclude Include="RuntimeFiles.h" />
     <ClInclude Include="Localization.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
@@ -181,6 +186,8 @@
   <ItemGroup>
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="PostProcessing.cpp" />
+    <ClCompile Include="FrameProfiler.cpp" />
+    <ClCompile Include="MeshCache.cpp" />
     <ClCompile Include="CityScene.cpp" />
     <ClCompile Include="Actor.cpp" />
     <ClCompile Include="SceneGraph.cpp" />
@@ -212,7 +219,9 @@
     <None Include="Shaders\GaussianBlur.fs" />
     <None Include="Shaders\PostComposite.fs" />
     <None Include="Data\Rendering\postprocess.cfg" />
+    <None Include="Data\Rendering\batching.cfg" />
     <None Include="Data\afterglow.district" />
+    <None Include="Data\Meshes\unit_quad.mesh" />
     <None Include="Data\level1.level" />
     <None Include="Data\Locale\ko.txt" />
   </ItemGroup>
