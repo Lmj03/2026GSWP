@@ -25,7 +25,8 @@ Point Direction(Point from, Point to)
 
 void CityScene::Attack()
 {
-    if (m_health <= 0 || m_baseOpen || m_attackCooldown > 0 || m_map || m_dialoguePages.size() > 1)
+    if (m_health <= 0 || m_baseOpen || m_attackCooldown > 0 || m_map ||
+        m_dialoguePages.size() > 1 || m_dialogue.open || m_journalOpen || m_story.sceneActive)
     {
         return;
     }
@@ -38,8 +39,13 @@ void CityScene::Attack()
     float closest = knife ? 2.1f : 1.35f;
     for (EnemyActor& enemy : m_enemies)
     {
+        if (!enemy.tutorial && m_story.stage != StoryStage::Confront)
+        {
+            continue;
+        }
         Point local;
-        if (!enemy.EnabledInHierarchy() || enemy.health <= 0 || !LevelLocal(enemy.position, local))
+        if (!enemy.EnabledInHierarchy() || enemy.health <= 0 ||
+            !EnemyLocal(enemy, enemy.position, local))
         {
             continue;
         }
@@ -56,11 +62,20 @@ void CityScene::Attack()
     }
     // Snapshot damage before awarding XP; all hits in one swing use the same stats.
     const std::int64_t damage = AttackDamage();
+    if (AttackCitizens(knife, damage, closest) && !knife)
+    {
+        target = nullptr;
+    }
     int experience = 0;
     for (EnemyActor& enemy : m_enemies)
     {
+        if (!enemy.tutorial && m_story.stage != StoryStage::Confront)
+        {
+            continue;
+        }
         Point local;
-        if (!enemy.EnabledInHierarchy() || enemy.health <= 0 || !LevelLocal(enemy.position, local))
+        if (!enemy.EnabledInHierarchy() || enemy.health <= 0 ||
+            !EnemyLocal(enemy, enemy.position, local))
         {
             continue;
         }
@@ -79,10 +94,14 @@ void CityScene::Attack()
         if (enemy.health == 0)
         {
             enemy.windup = 0;
-            enemy.loot = true;
+            enemy.loot = enemy.tutorial;
             enemy.pickupDelay = .35f;
             enemy.drop = Materials{2, 1, 1};
             enemy.respawn = 25;
+            if (enemy.tutorial && !enemy.defeatedOnce)
+            {
+                m_tutorialDefeats = std::min(3, m_tutorialDefeats + 1);
+            }
             enemy.defeatedOnce = true;
             experience += enemy.experience;
         }
@@ -95,7 +114,8 @@ void CityScene::Attack()
 
 void CityScene::UseRecovery()
 {
-    if (m_health <= 0 || m_baseOpen || m_map || m_dialoguePages.size() > 1)
+    if (m_health <= 0 || m_baseOpen || m_map || m_dialoguePages.size() > 1 || m_dialogue.open ||
+        m_journalOpen || m_story.sceneActive)
     {
         return;
     }
@@ -115,7 +135,9 @@ void CityScene::UseRecovery()
 
 void CityScene::RespawnPlayer()
 {
-    // Keep rewards, quest flags and uncollected drops. Only living enemies reset.
+    // Preserve streamed encounters in chunk-relative memory before moving the origin.
+    UnloadStreamEnemies(true);
+    UnloadTownActors();
     m_originX = 0;
     m_originY = 0;
     m_citizens.clear();
@@ -147,7 +169,7 @@ void CityScene::UpdateEnemy(Enemy& enemy, float dt)
     enemy.cooldown = std::max(0.f, enemy.cooldown - dt);
     Point local;
     Point home;
-    if (!LevelLocal(enemy.position, local) || !LevelLocal(enemy.home, home))
+    if (!EnemyLocal(enemy, enemy.position, local) || !EnemyLocal(enemy, enemy.home, home))
     {
         enemy.windup = 0;
         return;
@@ -156,14 +178,15 @@ void CityScene::UpdateEnemy(Enemy& enemy, float dt)
     if (enemy.health <= 0)
     {
         // Do not overwrite drops or create enemies on top of the player.
-        if (m_levelComplete && !enemy.loot)
+        if (enemy.tutorial && !enemy.loot)
         {
             enemy.respawn = std::max(0.f, enemy.respawn - dt);
             if (enemy.respawn <= 0 && Separation(home, m_player) > 5)
             {
-                enemy.health = enemy.maxHealth;
-                enemy.position = enemy.home;
-                enemy.cooldown = 1;
+                if (!RespawnEnemy(enemy))
+                {
+                    enemy.respawn = 2;
+                }
             }
         }
         return;
@@ -191,7 +214,7 @@ void CityScene::UpdateEnemy(Enemy& enemy, float dt)
         if (enemy.windup == 0)
         {
             Point strike;
-            if (LevelLocal(enemy.strike, strike) && Separation(m_player, strike) < .7f &&
+            if (EnemyLocal(enemy, enemy.strike, strike) && Separation(m_player, strike) < .7f &&
                 distance < 1.4f && ClearReach(local, m_player) && m_invulnerable <= 0)
             {
                 m_health = std::max<std::int64_t>(0, m_health - 12);

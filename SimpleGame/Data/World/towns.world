@@ -1,0 +1,18 @@
+# id, minimum chunk x/y, size in chunks, district type, security, population, hostile NPCs
+version 1
+town afterglow -2 -2 7 7 0 45 70 12
+town night_market 11 -2 7 7 1 70 70 6
+town foundry -2 11 7 7 3 30 70 20
+town medical -15 -2 7 7 4 85 70 3
+town commons -2 -15 7 7 0 60 70 9
+town scrapyard 11 11 7 7 3 15 70 28
+town arcadia -15 -15 7 7 4 95 70 1
+# Axis-aligned town-center roads. Boundary-to-boundary gap: 6 chunks / 48 tiles.
+road afterglow night_market
+road afterglow foundry
+road afterglow medical
+road afterglow commons
+road night_market scrapyard
+road foundry scrapyard
+road medical arcadia
+road commons arcadia

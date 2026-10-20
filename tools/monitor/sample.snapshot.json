@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "type": "world_snapshot",
+  "session_id": "example-not-live",
+  "sequence": 1,
+  "reset_epoch": 1,
+  "interval_ms": 1000,
+  "uptime_seconds": 10,
+  "scope": "loaded_chunks",
+  "world": {"origin_chunk_x": "0", "origin_chunk_y": "0", "loaded_chunks": 10, "actors": 120, "remembered_npcs": 2},
+  "simulation": {"focused": true, "paused": false, "reason": ""},
+  "player": {"level": 1, "health": 100, "max_health": 100, "legitimacy": 5, "reputation": 1, "story_stage": 0, "objective": "예시 데이터입니다. 실제 게임 상태가 아닙니다.", "village_id": "afterglow", "position": {"chunk_x": "1", "chunk_y": "1", "local_x": 4.5, "local_y": 3.5}},
+  "profiling": {"frame": "600", "fps": 60, "interval_ms": 16.67, "update_cpu_ms": 0.4, "render_cpu_ms": 3.2, "submit_cpu_ms": 1.1, "post_cpu_ms": 0.3, "swap_ms": 10, "draw_total": 12, "draw_world": 6, "draw_overlay": 3, "draw_post": 3, "instances": 600, "upload_bytes": 24000},
+  "transport": {"sent": 9, "failed": 0, "replaced": 0},
+  "villages": [
+    {"id": "afterglow", "name": "잔광 지구", "loaded_chunks": 9, "expected_chunks": 9},
+    {"id": "sector/0/0", "name": "공동 주거 (0, 0)", "loaded_chunks": 1, "expected_chunks": 27}
+  ],
+  "npcs": [
+    {"id": "citizen/example/merchant", "name": "예시 상인", "job_id": 1, "job": "상인", "activity_id": 1, "activity": "거래", "health": 36, "max_health": 36, "notoriety": 0, "trust": 20, "crimes": 0, "services": 2, "helped": true, "apology": false, "looted": false, "active": true, "enabled": true, "hostile": false, "story": false, "village_id": "afterglow", "position": {"chunk_x": "1", "chunk_y": "1", "local_x": 2, "local_y": 3}},
+    {"id": "citizen/example/raider", "name": "예시 약탈자", "job_id": 2, "job": "약탈자", "activity_id": 5, "activity": "갈취", "health": 20, "max_health": 36, "notoriety": 72, "trust": -60, "crimes": 4, "services": 0, "helped": false, "apology": false, "looted": false, "active": true, "enabled": true, "hostile": true, "story": false, "village_id": "afterglow", "position": {"chunk_x": "1", "chunk_y": "1", "local_x": 5, "local_y": 4}},
+    {"id": "citizen/example/guard", "name": "예시 경호원", "job_id": 6, "job": "경비", "activity_id": 0, "activity": "휴식", "health": 36, "max_health": 36, "notoriety": 75, "trust": 0, "crimes": 0, "services": 0, "helped": false, "apology": false, "looted": false, "active": false, "enabled": true, "hostile": false, "story": true, "village_id": "afterglow", "position": {"chunk_x": "1", "chunk_y": "0", "local_x": 3, "local_y": 7}},
+    {"id": "citizen/example/victim", "name": "예시 피해자", "job_id": 0, "job": "주민", "activity_id": 8, "activity": "제압됨", "health": 0, "max_health": 36, "notoriety": 0, "trust": 0, "crimes": 0, "services": 0, "helped": false, "apology": false, "looted": false, "active": true, "enabled": true, "hostile": false, "story": true, "village_id": "afterglow", "position": {"chunk_x": "1", "chunk_y": "0", "local_x": 4, "local_y": 7}}
+  ],
+  "mobs": [
+    {"id": "enemy/example/tutorial", "name": "예시 몹", "health": 30, "max_health": 30, "enabled": true, "combat_enabled": true, "tutorial": true, "windup": 0, "cooldown": 0, "respawn": 0, "loot": false, "state": "행동 가능", "village_id": "afterglow", "position": {"chunk_x": "2", "chunk_y": "1", "local_x": 3, "local_y": 2}},
+    {"id": "enemy/example/heir", "name": "예시 의료 기업 후손", "health": 90, "max_health": 90, "enabled": true, "combat_enabled": false, "tutorial": false, "windup": 0, "cooldown": 0, "respawn": 0, "loot": false, "state": "연출 대기", "village_id": "afterglow", "position": {"chunk_x": "1", "chunk_y": "0", "local_x": 4, "local_y": 7}}
+  ]
+}

@@ -11,6 +11,9 @@
 #include <iostream>
 #include <map>
 
+float Renderer::Width = 1280.f;
+float Renderer::Height = 800.f;
+
 namespace
 {
 std::wstring Decode(const std::string& text)
@@ -334,6 +337,7 @@ Renderer::Renderer(int width, int height)
     glUniform1iv(glGetUniformLocation(m_program, "u_Coverage[0]"), 8, units);
     m_linearOutput = glGetUniformLocation(m_program, "u_LinearOutput");
     m_emissionGain = glGetUniformLocation(m_program, "u_EmissionGain");
+    m_logicalSize = glGetUniformLocation(m_program, "u_LogicalSize");
     glGenVertexArrays(1, &m_vao);
     glGenBuffers(1, &m_vbo);
     glGenBuffers(1, &m_meshVbo);
@@ -417,11 +421,14 @@ void Renderer::Resize(int width, int height)
 {
     width = std::max(1, width);
     height = std::max(1, height);
-    const float scale = std::min(width / Width, height / Height);
-    m_viewWidth = std::max(1, static_cast<int>(Width * scale));
-    m_viewHeight = std::max(1, static_cast<int>(Height * scale));
-    m_viewX = (width - m_viewWidth) / 2;
-    m_viewY = (height - m_viewHeight) / 2;
+    // Expand the logical view to fill the window without stretching or letterboxing.
+    const float scale = std::min(width / 1280.f, height / 800.f);
+    Width = width / scale;
+    Height = height / scale;
+    m_viewWidth = width;
+    m_viewHeight = height;
+    m_viewX = 0;
+    m_viewY = 0;
     if (m_post.Ready())
     {
         m_post.Resize(m_viewWidth, m_viewHeight);
@@ -466,7 +473,7 @@ void Renderer::Begin(Color background)
     glDisable(GL_FRAMEBUFFER_SRGB);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(m_viewX, m_viewY, m_viewWidth, m_viewHeight);
-    glClearColor(0, 0, 0, 1); // clear letterbox bars independently of the scene target
+    glClearColor(0, 0, 0, 1);
     glClear(GL_COLOR_BUFFER_BIT);
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
@@ -520,6 +527,7 @@ void Renderer::Flush()
     profiler.SetStage(m_overlay ? FrameProfiler::Stage::Overlay : FrameProfiler::Stage::World);
     glUseProgram(m_program);
     glUniform1i(m_linearOutput, m_hdrScene ? 1 : 0);
+    glUniform2f(m_logicalSize, Width, Height);
     glUniform1f(m_emissionGain, m_post.GetSettings().emissionGain);
     glBindVertexArray(m_vao);
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);

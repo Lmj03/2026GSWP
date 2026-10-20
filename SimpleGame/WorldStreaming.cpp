@@ -1,57 +1,151 @@
 #include "stdafx.h"
 #include "CityScene.h"
+#include "WorldLayout.h"
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <unordered_map>
-
-namespace
-{
-std::uint64_t Mix(std::uint64_t value)
-{
-    value += 0x9e3779b97f4a7c15ULL;
-    value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9ULL;
-    value = (value ^ (value >> 27)) * 0x94d049bb133111ebULL;
-    return value ^ (value >> 31);
-}
-}
 
 CityScene::ChunkContent CityScene::GenerateChunk(const ChunkKey& key) const
 {
+    constexpr float MinimumBuildingGap = 2.f;
+    constexpr float BuildingInset = 1.1f;
     ChunkContent result;
-    const std::uint64_t seed = Mix(static_cast<std::uint64_t>(key.first)) ^
-                               Mix(static_cast<std::uint64_t>(key.second) + 2026ULL);
+    const int townIndex = WorldTownIndex(key.first, key.second);
+    if (townIndex < 0)
+    {
+        return result;
+    }
+    const auto& town = WorldTowns()[static_cast<size_t>(townIndex)];
+    const auto seed = WorldHash(key.first, key.second, m_populationSeed);
+    const int region = WorldRegion(key.first, key.second);
     const std::string prefix =
         "generated/" + std::to_string(key.first) + "/" + std::to_string(key.second);
-    // Occupy two or three of the four lots; retain one or two open spaces.
-    // Coordinate-derived masks keep the same courtyards on every revisit.
-    static const unsigned int lotMasks[] = {0x3, 0x5, 0x9, 0x6, 0xA, 0xC, 0x7, 0xB, 0xD, 0xE};
-    const unsigned int occupiedLots = lotMasks[Mix(seed + 71ULL) % 10];
-    for (int lot = 0; lot < 4; ++lot)
+    const bool authored =
+        key.first >= -256 && key.first <= 256 && key.second >= -256 && key.second <= 256 &&
+        m_authoredChunks.count({static_cast<int>(key.first), static_cast<int>(key.second)});
+    const int buildingLimit =
+        region == 2 ? 1 : 1 + static_cast<int>(WorldHash(key.first, key.second, 17) % 2);
+    for (int lot = 0;
+         !authored && lot < 36 && static_cast<int>(result.buildings.size()) < buildingLimit;
+         ++lot)
     {
-        if ((occupiedLots & (1u << lot)) == 0)
+        // Buildings depend on coordinates alone; population varies between new games.
+        const auto value = WorldHash(key.first, key.second, lot * 137ULL + 71);
+        Building b{};
+        b.id = prefix + "/building/" + std::to_string(result.buildings.size());
+        const bool useCompactFootprint = lot % 3 == 0;
+        b.w = useCompactFootprint ? 1.5f + float((value >> 8) % 16) * .01f
+                                  : 1.8f + float((value >> 8) % 65) * .01f;
+        b.d = useCompactFootprint ? 1.5f + float((value >> 13) % 16) * .01f
+                                  : 1.7f + float((value >> 13) % 65) * .01f;
+        b.x = BuildingInset + ((value >> 19) % 2) * (ChunkSize - BuildingInset * 2 - b.w);
+        b.y = BuildingInset + ((value >> 27) % 2) * (ChunkSize - BuildingInset * 2 - b.d);
+        b.height = (region == 4 ? 100.f : region == 3 ? 45.f : 55.f) + float((value >> 35) % 55);
+        b.palette = region == 1 ? 1 : region == 3 ? 2 : int((value >> 43) % 3);
+        b.sign = m_text.Get("world.sign." + std::to_string(region));
+        bool clear = true;
+        for (int x = int(std::floor(b.x - .2f)); x <= int(std::floor(b.x + b.w + .2f)); ++x)
         {
-            continue;
+            for (int y = int(std::floor(b.y - .2f)); y <= int(std::floor(b.y + b.d + .2f)); ++y)
+            {
+                if (WorldRoad(key.first, key.second, x, y))
+                {
+                    clear = false;
+                }
+            }
         }
-        const std::uint64_t value = Mix(seed + lot * 117ULL);
-        Building building{};
-        building.id = prefix + "/building/" + std::to_string(lot);
-        building.x = lot % 2 == 0 ? .22f : 5.18f;
-        building.y = lot / 2 == 0 ? .22f : 5.18f;
-        building.w = 2.25f + static_cast<float>((value >> 8) % 4) * .1f;
-        building.d = 2.25f + static_cast<float>((value >> 12) % 4) * .1f;
-        building.height = 65.f + static_cast<float>((value >> 16) % 115);
-        building.palette = static_cast<int>((value >> 24) % 3);
-        building.sign = m_text.Get("generated.sign." + std::to_string((value >> 32) % 8));
-        result.buildings.push_back(building);
+        for (const Building& other : result.buildings)
+        {
+            if (b.x < other.x + other.w + MinimumBuildingGap &&
+                b.x + b.w + MinimumBuildingGap > other.x &&
+                b.y < other.y + other.d + MinimumBuildingGap &&
+                b.y + b.d + MinimumBuildingGap > other.y)
+            {
+                clear = false;
+            }
+        }
+        if (clear)
+        {
+            result.buildings.push_back(b);
+        }
     }
-    Citizen citizen{};
-    citizen.id = prefix + "/citizen";
-    citizen.role = static_cast<int>((seed >> 8) % 3);
-    citizen.name = m_text.Get("generated.name." + std::to_string(citizen.role));
-    citizen.home = {3.5f, 4.4f};
-    citizen.position = citizen.home;
-    result.citizens.push_back(citizen);
+    auto open = [&](Point point)
+    {
+        for (const Building& b : result.buildings)
+        {
+            if (point.x > b.x - .4f && point.x < b.x + b.w + .4f && point.y > b.y - .4f &&
+                point.y < b.y + b.d + .4f)
+            {
+                return false;
+            }
+        }
+        if (authored)
+        {
+            const Point native{static_cast<float>(key.first * ChunkSize) + point.x,
+                               static_cast<float>(key.second * ChunkSize) + point.y};
+            for (const Building& b : m_authoredBuildings)
+            {
+                if (native.x > b.x - .4f && native.x < b.x + b.w + .4f && native.y > b.y - .4f &&
+                    native.y < b.y + b.d + .4f)
+                {
+                    return false;
+                }
+            }
+            if (std::hypot(native.x - m_spawn.x, native.y - m_spawn.y) < 2)
+            {
+                return false;
+            }
+            for (const auto& node : m_storyNodes)
+            {
+                if (std::hypot(native.x - node.second.x, native.y - node.second.y) < 1.3f)
+                {
+                    return false;
+                }
+            }
+            for (const Citizen& npc : m_authoredCitizens)
+            {
+                if (std::hypot(native.x - npc.home.x, native.y - npc.home.y) < 1)
+                {
+                    return false;
+                }
+            }
+        }
+        return WorldRoad(key.first,
+                         key.second,
+                         static_cast<int>(point.x),
+                         static_cast<int>(point.y));
+    };
+    const int mobLimit = town.security >= 80   ? 0
+                         : town.security >= 60 ? ((seed >> 8) % 4 == 0 ? 1 : 0)
+                         : town.security >= 40 ? static_cast<int>((seed >> 8) % 2)
+                                               : static_cast<int>((seed >> 8) % 3);
+    for (int attempt = 0; attempt < 48 && static_cast<int>(result.enemies.size()) < mobLimit;
+         ++attempt)
+    {
+        const auto value =
+            WorldHash(key.first, key.second, m_populationSeed + attempt * 89ULL + 593);
+        const Point point{.7f + float(value % 660) * .01f, .7f + float((value >> 16) % 660) * .01f};
+        bool clear = open(point);
+        for (const Enemy& other : result.enemies)
+        {
+            if (std::hypot(point.x - other.home.x, point.y - other.home.y) < 2)
+            {
+                clear = false;
+            }
+        }
+        if (clear)
+        {
+            Enemy enemy;
+            enemy.id = prefix + "/mob/" + std::to_string(result.enemies.size());
+            enemy.home = enemy.position = point;
+            enemy.chunkX = key.first;
+            enemy.chunkY = key.second;
+            enemy.streamed = true;
+            enemy.health = enemy.maxHealth = region == 3 ? 36 : 30;
+            enemy.experience = region == 3 ? 3 : 2;
+            result.enemies.push_back(enemy);
+        }
+    }
     return result;
 }
 
@@ -84,6 +178,20 @@ void CityScene::Recenter()
         citizen.position.y -= offsetY;
         citizen.home.x -= offsetX;
         citizen.home.y -= offsetY;
+        citizen.strike.x -= offsetX;
+        citizen.strike.y -= offsetY;
+    }
+    for (Enemy& enemy : m_enemies)
+    {
+        if (enemy.streamed)
+        {
+            enemy.position.x -= offsetX;
+            enemy.position.y -= offsetY;
+            enemy.home.x -= offsetX;
+            enemy.home.y -= offsetY;
+            enemy.strike.x -= offsetX;
+            enemy.strike.y -= offsetY;
+        }
     }
     RefreshWorld();
 }
@@ -91,12 +199,6 @@ void CityScene::Recenter()
 void CityScene::RefreshWorld()
 {
     m_nextStreamActors.clear();
-    // Keep active actors' positions; never retain every visited chunk.
-    std::unordered_map<std::string, Point> positions;
-    for (const Citizen& citizen : m_citizens)
-    {
-        positions.emplace(citizen.id, citizen.position);
-    }
     for (auto it = m_generated.begin(); it != m_generated.end();)
     {
         if (it->first.first < m_originX - StreamRadius ||
@@ -113,17 +215,6 @@ void CityScene::RefreshWorld()
     }
     m_chunks.clear();
     m_buildings.clear();
-    m_citizens.clear();
-    auto addCitizen = [&](Citizen citizen)
-    {
-        const auto old = positions.find(citizen.id);
-        if (old != positions.end())
-        {
-            citizen.position = old->second;
-        }
-        citizen.remembersHelp = m_remembered.count(citizen.id) != 0;
-        AddCitizen(std::move(citizen));
-    };
     for (int x = -StreamRadius; x <= StreamRadius; ++x)
     {
         for (int y = -StreamRadius; y <= StreamRadius; ++y)
@@ -140,13 +231,6 @@ void CityScene::RefreshWorld()
                 {static_cast<float>(x * ChunkSize), static_cast<float>(y * ChunkSize)});
             m_nextStreamActors.insert(terrainId);
             const ChunkKey key(m_originX + x, m_originY + y);
-            const bool authored =
-                key.first >= -256 && key.first <= 256 && key.second >= -256 && key.second <= 256 &&
-                m_authoredChunks.count({static_cast<int>(key.first), static_cast<int>(key.second)});
-            if (authored)
-            {
-                continue;
-            }
             auto found = m_generated.find(key);
             if (found == m_generated.end())
             {
@@ -159,13 +243,6 @@ void CityScene::RefreshWorld()
                 building.x += offsetX;
                 building.y += offsetY;
                 AddBuilding(std::move(building));
-            }
-            for (Citizen citizen : found->second.citizens)
-            {
-                citizen.home.x += offsetX;
-                citizen.home.y += offsetY;
-                citizen.position = citizen.home;
-                addCitizen(std::move(citizen));
             }
         }
     }
@@ -185,22 +262,6 @@ void CityScene::RefreshWorld()
                      (building.y - static_cast<float>(cy * ChunkSize));
         AddBuilding(std::move(building));
     }
-    for (Citizen citizen : m_authoredCitizens)
-    {
-        const auto cx = static_cast<std::int64_t>(std::floor(citizen.home.x / ChunkSize));
-        const auto cy = static_cast<std::int64_t>(std::floor(citizen.home.y / ChunkSize));
-        if (cx < m_originX - StreamRadius || cx > m_originX + StreamRadius ||
-            cy < m_originY - StreamRadius || cy > m_originY + StreamRadius)
-        {
-            continue;
-        }
-        citizen.home.x = static_cast<float>((cx - m_originX) * ChunkSize) +
-                         (citizen.home.x - static_cast<float>(cx * ChunkSize));
-        citizen.home.y = static_cast<float>((cy - m_originY) * ChunkSize) +
-                         (citizen.home.y - static_cast<float>(cy * ChunkSize));
-        citizen.position = citizen.home;
-        addCitizen(std::move(citizen));
-    }
     for (const std::string& id : m_streamActors)
     {
         if (!m_nextStreamActors.count(id))
@@ -209,6 +270,8 @@ void CityScene::RefreshWorld()
         }
     }
     m_streamActors = std::move(m_nextStreamActors);
+    m_townActorsDirty = true;
+    RefreshEnemies();
     SyncSceneGraph();
     m_sceneGraph.FlushDestroyed();
 }

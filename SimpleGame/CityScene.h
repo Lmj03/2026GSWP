@@ -3,6 +3,9 @@
 #include "Localization.h"
 #include "SceneGraph.h"
 #include "GameActors.h"
+#include "StoryState.h"
+#include "TelemetryClient.h"
+#include <chrono>
 #include <cstdint>
 #include <map>
 #include <set>
@@ -19,9 +22,14 @@ public:
     void Interact();
     void UseRecovery();
     bool HandleBaseInput(unsigned char key);
+    bool HandleInteractionInput(unsigned char key);
+    void HandlePointer(float x, float y);
+    void ToggleJournal();
     void NotifyGraphicsReload(bool success);
     void Reset();
     void Zoom(int direction);
+    void PublishMonitoring(bool focused);
+    void StopMonitoring();
 
     void ToggleRain()
     {
@@ -39,6 +47,16 @@ public:
     }
 
 private:
+    TelemetryClient m_telemetry;
+    bool m_monitorInitialized = false;
+    bool m_monitorEnabled = false;
+    int m_monitorInterval = 1000;
+    std::uint64_t m_monitorSequence = 0;
+    std::uint64_t m_monitorReset = 0;
+    std::string m_monitorSession;
+    std::chrono::steady_clock::time_point m_monitorStart;
+    std::chrono::steady_clock::time_point m_monitorNext;
+    std::string MonitoringSnapshot(bool focused) const;
     friend class PlayerActor;
     friend class EnemyActor;
     friend class CitizenActor;
@@ -54,6 +72,9 @@ private:
     friend class InterfaceActor;
     friend class BaseMenuActor;
     friend class WarningActor;
+    friend class StoryActor;
+    friend class StoryNodeActor;
+    friend class DialogueActor;
     SceneGraph m_sceneGraph;
     PlayerActor& m_playerActor;
     const bool* m_input = nullptr;
@@ -63,6 +84,23 @@ private:
     std::set<std::string> m_nextStreamActors;
     void AddBuilding(Building building);
     void AddCitizen(Citizen citizen);
+    void AddEnemy(const Enemy& enemy);
+    void RefreshEnemies();
+    void SpawnEnemies(bool initial = false);
+    void UpdatePopulation(float dt);
+    void InitializeTownPopulation();
+    void SyncTownResidents();
+    void RefreshTownActors();
+    void UnloadTownActors();
+    void UpdateTownPopulation(float dt);
+    void AdvanceTownTravel(Citizen& npc, float dt, bool local);
+    void BeginTownTravel(Citizen& npc, int destination);
+    bool TownScenePoint(Point native, Point& local) const;
+    void UnloadStreamEnemies(bool remember);
+    void RememberEnemy(const Enemy& enemy);
+    bool EnemyLocal(const Enemy& enemy, Point point, Point& local) const;
+    bool RespawnEnemy(Enemy& enemy);
+    bool StoryObjectiveLocal(Point& local) const;
     void SetEnemies(const std::vector<Enemy>& enemies);
     void SyncSceneGraph();
     void UpdatePlayer(float dt);
@@ -77,6 +115,37 @@ private:
     void DrawWarning(Renderer& renderer, const Enemy& enemy) const;
     void DrawDrone(Renderer& renderer, Point position) const;
     bool CanSimulate() const;
+    StoryState m_story;
+    DialogueState m_dialogue;
+    std::map<std::string, Point> m_storyNodes;
+    std::map<std::string, NpcMemory> m_npcMemory;
+    std::map<std::string, Citizen> m_townResidents;
+    bool m_townActorsDirty = true;
+    float m_townRefreshTimer = 0;
+    bool m_journalOpen = false;
+    size_t m_journalPage = 0;
+    bool LoadStory();
+    void ResetStory();
+    void UpdateStory(float dt);
+    bool InteractStory();
+    Point StoryObjective() const;
+    std::string StoryObjectiveKey() const;
+    void OpenDialogue(const std::string& title,
+                      const std::string& body,
+                      const std::vector<DialogueOption>& options,
+                      const std::string& npc = "");
+    void ChooseDialogue(DialogueAction action);
+    bool RecordJustice(const std::string& id, int amount, const std::string& key);
+    void OpenNpcDialogue(Citizen& npc);
+    void RememberNpc(const Citizen& npc);
+    void UpdateNpc(Citizen& npc, float dt, float phase);
+    bool AttackCitizens(bool knife, std::int64_t damage, float maximumDistance);
+    void DrawCitizen(Renderer& renderer, const Citizen& npc, float phase) const;
+    void DrawPlayer(Renderer& renderer, Point position) const;
+    void DrawStoryNode(Renderer& renderer, const std::string& id, Point position) const;
+    void DrawStoryHud(Renderer& renderer) const;
+    void DrawDialogue(Renderer& renderer) const;
+    void DrawJournal(Renderer& renderer) const;
 
     ActorView<EnemyActor> m_enemies;
     Point m_supply;
@@ -115,6 +184,11 @@ private:
     std::int64_t AttackDamage() const;
     bool m_supplyOpened = false;
     bool m_levelComplete = false;
+    int m_tutorialDefeats = 0;
+    int m_tutorialLoot = 0;
+    float m_populationTimer = 0;
+    std::uint64_t m_populationSeed = 0;
+    std::map<std::string, Enemy> m_enemyMemory;
     float m_attackCooldown = 0;
     float m_attackAnimation = 0;
     float m_invulnerable = 0;
@@ -135,11 +209,16 @@ private:
     std::int64_t BaseAttackDamage() const;
     bool LevelLocal(Point world, Point& local) const;
     bool ClearReach(Point from, Point to) const;
-    Point LevelObjective() const;
+    bool LevelObjective(Point& local) const;
     void DrawEnemy(Renderer& renderer, const Enemy& enemy) const;
     void DrawAttack(Renderer& renderer) const;
     void DrawLevelHud(Renderer& renderer) const;
-    void DrawLevelMap(Renderer& renderer, float left, float top, float size, float radius) const;
+    void DrawLevelMap(Renderer& renderer,
+                      float left,
+                      float top,
+                      float size,
+                      float radius,
+                      Point center) const;
 
     static constexpr int ChunkSize = 8;
     static constexpr int StreamRadius = 6;
@@ -148,7 +227,7 @@ private:
     struct ChunkContent
     {
         std::vector<Building> buildings;
-        std::vector<Citizen> citizens;
+        std::vector<Enemy> enemies;
     };
 
     std::int64_t m_originX = 0, m_originY = 0;

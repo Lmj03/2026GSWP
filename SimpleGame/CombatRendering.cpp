@@ -31,7 +31,7 @@ void CityScene::DrawMarker(Renderer& r, Point world, Color color, const std::str
     r.Glow(p, 24 * m_zoom, 12 * m_zoom, color);
     r.Ellipse(p, 15 * m_zoom, 7 * m_zoom, color.Alpha(.4f));
     r.Rect(p.x - 5 * m_zoom, p.y - 9 * m_zoom, 10 * m_zoom, 8 * m_zoom, color.Emissive(.6f));
-    if (m_interface)
+    if (m_interface && std::hypot(local.x - m_player.x, local.y - m_player.y) < 2.5f)
     {
         const std::string label = m_text.Get(key);
         r.Text(p.x - r.MeasureText(label, .9f) * .5f, p.y + 12, label, .9f, color);
@@ -53,11 +53,12 @@ void CityScene::DrawLoot(Renderer& r, const Enemy& enemy) const
         return;
     }
 
-    DrawMarker(r, enemy.position, LevelGold, "level.loot_marker");
     Point local;
-    if (LevelLocal(enemy.position, local))
+    if (EnemyLocal(enemy, enemy.position, local))
     {
         const Point p = Project(local.x, local.y);
+        r.Glow(p, 20 * m_zoom, 10 * m_zoom, LevelGold);
+        r.Rect(p.x - 5, p.y - 9, 10, 8, LevelGold.Emissive(.6f));
         r.Rect(p.x - 15, p.y - 8, 6, 6, LevelCyan.Emissive(.5f));
         r.Rect(p.x + 9, p.y - 8, 6, 6, Color(.8f, .45f, 1.f).Emissive(.5f));
     }
@@ -71,7 +72,7 @@ void CityScene::DrawWarning(Renderer& r, const Enemy& enemy) const
     }
 
     Point local;
-    if (LevelLocal(enemy.strike, local))
+    if (EnemyLocal(enemy, enemy.strike, local))
     {
         const Point p = Project(local.x, local.y);
         r.Ellipse(p, 32 * m_zoom, 16 * m_zoom, LevelRed.Alpha(.22f + (.65f - enemy.windup) * .5f));
@@ -80,8 +81,18 @@ void CityScene::DrawWarning(Renderer& r, const Enemy& enemy) const
 
 void CityScene::DrawEnemy(Renderer& r, const Enemy& enemy) const
 {
+    if (!enemy.tutorial && enemy.health <= 0 && m_story.stage == StoryStage::Sentence)
+    {
+        Point down;
+        if (EnemyLocal(enemy, enemy.position, down))
+        {
+            const Point p = Project(down.x, down.y);
+            r.Ellipse(p, 12 * m_zoom, 5 * m_zoom, Color(.2f, .18f, .23f));
+        }
+        return;
+    }
     Point local;
-    if (enemy.health <= 0 || !LevelLocal(enemy.position, local))
+    if (enemy.health <= 0 || !EnemyLocal(enemy, enemy.position, local))
     {
         return;
     }
@@ -93,12 +104,17 @@ void CityScene::DrawEnemy(Renderer& r, const Enemy& enemy) const
     DrawActor(r, local, 2, enemy.windup > 0 ? 0 : m_time * 4, false);
     const Color color = enemy.flash > 0 ? LevelWhite : LevelRed;
     r.Ellipse({p.x, p.y + 2}, 13 * m_zoom, 6 * m_zoom, color.Alpha(.4f));
+    if (!m_interface || std::hypot(local.x - m_player.x, local.y - m_player.y) > 4.5f)
+    {
+        return;
+    }
     r.Rect(p.x - 23, p.y - 62 * m_zoom, 46, 5, Color(.06f, .02f, .03f));
     r.Rect(p.x - 23, p.y - 62 * m_zoom, 46.f * enemy.health / enemy.maxHealth, 5, color);
     if (m_interface)
     {
-        const std::string label =
-            m_text.Get(enemy.windup > 0 ? "level.enemy_windup" : "level.enemy");
+        const std::string label = m_text.Get(!enemy.tutorial    ? "story.name.heir"
+                                             : enemy.windup > 0 ? "level.enemy_windup"
+                                                                : "level.enemy");
         r.Text(p.x - r.MeasureText(label, .85f) * .5f, p.y - 82 * m_zoom, label, .85f, color);
     }
 }
@@ -166,143 +182,109 @@ void CityScene::DrawAttack(Renderer& r) const
 
 void CityScene::DrawLevelHud(Renderer& r) const
 {
-    const int defeated = static_cast<int>(std::count_if(m_enemies.begin(),
-                                                        m_enemies.end(),
-                                                        [](const Enemy& enemy)
-                                                        {
-                                                            return enemy.defeatedOnce;
-                                                        }));
-    const int looted = static_cast<int>(std::count_if(m_enemies.begin(),
-                                                      m_enemies.end(),
-                                                      [](const Enemy& enemy)
-                                                      {
-                                                          return enemy.lootedOnce;
-                                                      }));
-    const std::string objective = !m_supplyOpened    ? "level.objective_supply"
-                                  : defeated < 3     ? "level.objective_fight"
-                                  : looted < 3       ? "level.objective_loot"
-                                  : !m_levelComplete ? "level.objective_return"
-                                                     : "level.objective_done";
-    r.Rect(32, 112, 352, 152, Color(.012f, .025f, .044f, .94f));
-    r.Rect(32, 112, 3, 152, LevelGold);
-    r.Text(49, 125, m_text.Get("level.title"), 1.19f, LevelGold);
-    r.TextWrapped(49, 160, m_text.Get(objective), 1.f, LevelWhite, 318);
-    r.Text(49,
-           234,
-           m_text.Format("level.progress",
-                         {{"kills", std::to_string(defeated)}, {"loot", std::to_string(looted)}}),
-           .96f,
-           LevelCyan);
-
-    const float left = Renderer::Width - 324;
-    r.Rect(left, 318, 292, 224, Color(.012f, .025f, .044f, .94f));
-    r.TextFitted(left + 14,
-                 330,
+    const float left = 24;
+    const float top = Renderer::Height - 186;
+    r.Rect(left, top, 330, 162, Color(.012f, .025f, .044f, .82f));
+    r.TextFitted(left + 16,
+                 top + 12,
                  m_text.Format("level.stats",
                                {{"level", std::to_string(m_level)}, {"weapon", WeaponName()}}),
                  1.03f,
                  LevelWhite,
-                 264);
-    r.TextFitted(left + 14,
-                 360,
-                 m_text.Format("level.attack", {{"damage", std::to_string(AttackDamage())}}),
-                 .96f,
-                 LevelGold,
-                 264);
+                 298);
     r.TextFitted(
-        left + 14,
-        390,
+        left + 16,
+        top + 43,
         m_text.Format("level.health",
                       {{"hp", std::to_string(m_health)}, {"max", std::to_string(MaxHealth())}}),
-        .96f,
+        .92f,
         LevelWhite,
-        264);
-    r.Rect(left + 14, 416, 264, 5, LevelRed.Alpha(.2f));
-    r.Rect(left + 14,
-           416,
-           264.f * static_cast<float>(m_health) / static_cast<float>(MaxHealth()),
-           5,
+        298);
+    r.Rect(left + 16, top + 70, 298, 6, LevelRed.Alpha(.22f));
+    r.Rect(left + 16,
+           top + 70,
+           298.f * static_cast<float>(m_health) / static_cast<float>(MaxHealth()),
+           6,
            LevelRed);
-    r.TextFitted(left + 14,
-                 433,
+    r.TextFitted(left + 16,
+                 top + 87,
                  m_text.Format("level.experience",
                                {{"xp", std::to_string(m_experience)},
                                 {"next", std::to_string(RequiredExperience())}}),
-                 .96f,
+                 .83f,
                  LevelCyan,
-                 264);
-    r.Rect(left + 14, 459, 264, 5, LevelCyan.Alpha(.2f));
-    r.Rect(left + 14,
-           459,
-           264.f * static_cast<float>(m_experience) / static_cast<float>(RequiredExperience()),
-           5,
+                 298);
+    r.Rect(left + 16, top + 111, 298, 4, LevelCyan.Alpha(.2f));
+    r.Rect(left + 16,
+           top + 111,
+           298.f * static_cast<float>(m_experience) / static_cast<float>(RequiredExperience()),
+           4,
            LevelCyan);
-    r.TextFitted(left + 14,
-                 480,
-                 m_text.Format("level.inventory",
-                               {{"credits", std::to_string(m_credits)},
-                                {"scrap", std::to_string(m_bag.scrap)}}),
-                 .93f,
+    r.TextFitted(left + 16,
+                 top + 129,
+                 m_text.Format("hud.credits", {{"credits", std::to_string(m_credits)}}),
+                 .86f,
                  LevelGold,
-                 264);
-    r.TextFitted(left + 14,
-                 510,
+                 152);
+    r.TextFitted(left + 180,
+                 top + 129,
                  m_text.Format("level.recovery", {{"count", std::to_string(m_recovery)}}),
-                 .93f,
-                 LevelWhite,
-                 264);
-
+                 .86f,
+                 LevelCyan,
+                 130);
+    const float noticeWidth = std::min(540.f, Renderer::Width - 410);
+    const float noticeLeft = (Renderer::Width - noticeWidth) * .5f;
+    float noticeTop = Renderer::Height - 220;
     if (m_combatNoticeTime > 0)
     {
-        r.TextWrapped(420, 94, m_combatNotice, 1.02f, LevelGold, 510);
+        noticeTop -= r.WrappedHeight(m_combatNotice, .93f, noticeWidth);
+        r.TextWrapped(noticeLeft, noticeTop, m_combatNotice, .93f, LevelGold, noticeWidth);
+        noticeTop -= 8;
     }
     if (m_pickupNoticeTime > 0)
     {
-        const float top =
-            m_combatNoticeTime > 0 ? 106 + r.WrappedHeight(m_combatNotice, 1.02f, 510) : 94;
-        r.TextWrapped(420, top, m_pickupNotice, .96f, LevelCyan, 510);
-    }
-    Point target;
-    if (LevelLocal(LevelObjective(), target))
-    {
-        Point p = Project(target.x, target.y);
-        p.x = std::max(408.f, std::min(922.f, p.x));
-        p.y = std::max(242.f, std::min(560.f, p.y));
-        r.Triangle({p.x, p.y + 7}, {p.x - 6, p.y - 5}, {p.x + 6, p.y - 5}, LevelGold);
-        r.Text(p.x - 18, p.y - 26, m_text.Get("level.target"), .9f, LevelGold);
-    }
-    else
-    {
-        r.TextWrapped(420, 242, m_text.Get("level.return_district"), 1.f, LevelGold, 500);
+        noticeTop -= r.WrappedHeight(m_pickupNotice, .86f, noticeWidth);
+        r.TextWrapped(noticeLeft, noticeTop, m_pickupNotice, .86f, LevelCyan, noticeWidth);
     }
 }
 
-void CityScene::DrawLevelMap(Renderer& r, float left, float top, float size, float radius) const
+void CityScene::DrawLevelMap(Renderer& r,
+                             float left,
+                             float top,
+                             float size,
+                             float radius,
+                             Point center) const
 {
-    auto marker = [&](Point world, Color color)
+    auto marker = [&](Point local, Color color)
     {
-        Point local;
-        if (!LevelLocal(world, local))
-        {
-            return;
-        }
-        const Point p(left + size * .5f + (local.x - m_player.x) * size / (2 * radius),
-                      top + size * .5f + (local.y - m_player.y) * size / (2 * radius));
+        const Point p(left + size * .5f + (local.x - center.x) * size / (2 * radius),
+                      top + size * .5f + (local.y - center.y) * size / (2 * radius));
         if (p.x > left + 4 && p.x < left + size - 4 && p.y > top + 4 && p.y < top + size - 4)
         {
             r.Ellipse(p, 3, 3, color);
         }
     };
-    marker(m_spawn, LevelCyan);
-    if (!m_supplyOpened)
+    Point local;
+    if (LevelLocal(m_spawn, local))
     {
-        marker(m_supply, LevelGold);
+        marker(local, LevelCyan);
     }
-    for (const Enemy& enemy : m_enemies)
+    if (!m_supplyOpened && LevelLocal(m_supply, local))
     {
+        marker(local, LevelGold);
+    }
+    for (const EnemyActor& enemy : m_enemies)
+    {
+        if (!enemy.EnabledInHierarchy())
+        {
+            continue;
+        }
         if (enemy.health > 0 || enemy.loot)
         {
-            marker(enemy.position, enemy.loot ? LevelGold : LevelRed);
+            if (EnemyLocal(enemy, enemy.position, local))
+            {
+                marker(local, enemy.loot ? LevelGold : LevelRed);
+            }
         }
     }
 }

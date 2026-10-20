@@ -26,7 +26,7 @@ void PlayerActor::Update(float dt)
 
 void PlayerActor::Draw(Renderer& r) const
 {
-    m_scene.DrawActor(r, WorldPosition(), -1, m_scene.m_walk, false);
+    m_scene.DrawPlayer(r, WorldPosition());
 }
 
 BuildingActor::BuildingActor(const std::string& id, CityScene& scene, const Building& data)
@@ -89,12 +89,16 @@ void CitizenActor::Update(float dt)
     const Point offset = Parent() ? Parent()->WorldPosition() : Point();
     data.home = {home.x + offset.x, home.y + offset.y};
     m_scene.UpdateCitizen(data, dt, phase);
-    SetWorldPosition(data.position);
+    data.position = {data.position.x - offset.x, data.position.y - offset.y};
+    data.home = {data.home.x - offset.x, data.home.y - offset.y};
+    static_cast<Citizen&>(*this) = data;
 }
 
 void CitizenActor::Draw(Renderer& r) const
 {
-    m_scene.DrawActor(r, WorldPosition(), role, m_scene.m_time * 2 + phase, remembersHelp);
+    Citizen data = *this;
+    data.position = WorldPosition();
+    m_scene.DrawCitizen(r, data, phase);
 }
 
 EnemyActor::EnemyActor(const std::string& id, CityScene& scene, const Enemy& data)

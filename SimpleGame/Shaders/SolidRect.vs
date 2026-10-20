@@ -9,12 +9,16 @@ out vec2 v_UV;
 out float v_Emission;
 flat out int v_TextureSlot;
 flat out int v_Ellipse;
+uniform vec2 u_LogicalSize;
 
 void main()
 {
     vec2 position = a_Corner.y < 0.5 ? (a_Corner.x < 0.5 ? a_AB.xy : a_AB.zw)
                                      : (a_Corner.x < 0.5 ? a_CD.zw : a_CD.xy);
-    gl_Position = vec4(position.x / 640.0 - 1.0, 1.0 - position.y / 400.0, 0.0, 1.0);
+    gl_Position = vec4(position.x * 2.0 / u_LogicalSize.x - 1.0,
+                       1.0 - position.y * 2.0 / u_LogicalSize.y,
+                       0.0,
+                       1.0);
     v_Color = a_Color;
     v_UV = a_Corner;
     v_Emission = a_Material.x;

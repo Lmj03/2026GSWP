@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "CityScene.h"
+#include "WorldLayout.h"
 #include "Resources.h"
 #include <algorithm>
 #include <cmath>
@@ -25,11 +26,6 @@ int Mod(int n, int d)
     return (n % d + d) % d;
 }
 
-bool Road(int x, int y)
-{
-    return Mod(x, 8) == 3 || Mod(x, 8) == 4 || Mod(y, 8) == 3 || Mod(y, 8) == 4;
-}
-
 }
 
 void CityScene::DrawTerrain(Renderer& r, Point origin) const
@@ -46,16 +42,33 @@ void CityScene::DrawTerrain(Renderer& r, Point origin) const
             {
                 continue;
             }
-            const bool road = Road(x, y);
+            const auto cx = m_originX + static_cast<int>(origin.x) / ChunkSize;
+            const auto cy = m_originY + static_cast<int>(origin.y) / ChunkSize;
+            const bool road = WorldRoad(cx, cy, ix, iy);
+            const int region = WorldRegion(cx, cy);
+            const bool inTown = WorldTownIndex(cx, cy) >= 0;
             const float variation = Mod(x * 17 + y * 31 + static_cast<int>(m_originX % 7) * 8 * 17 +
                                             static_cast<int>(m_originY % 7) * 8 * 31,
                                         7) *
                                     .003f;
             const Color tile = road ? Color(.037f + variation, .061f + variation, .094f + variation)
-                                    : Color(.084f + variation, .12f + variation, .16f + variation);
+                               : !inTown
+                                   ? Color(.025f + variation, .038f + variation, .052f + variation)
+                                   : Color(.06f + region * .006f + variation,
+                                           .09f + region * .008f + variation,
+                                           .13f + variation);
             r.Quad(a, b, c, d, tile);
             r.Line(a, b, .65f, Color(.19f, .32f, .38f, road ? .12f : .35f));
             r.Line(a, d, .65f, Color(.19f, .32f, .38f, road ? .12f : .35f));
+            if (road && !inTown && Mod(x + y, 4) == 0)
+            {
+                const Point p = Project(x + .4f, y + .4f);
+                const bool horizontal = WorldRoad(cx, cy, ix + 1, iy);
+                r.Line(p,
+                       horizontal ? Project(x + .8f, y + .4f) : Project(x + .4f, y + .8f),
+                       2 * m_zoom,
+                       Amber.Alpha(.6f));
+            }
             if (road && Mod(x + y, 3) == 0)
             {
                 const Point p = Project(x + .5f, y + .5f);
@@ -65,21 +78,21 @@ void CityScene::DrawTerrain(Renderer& r, Point origin) const
                        1,
                        Color(.3f, .55f, .66f, .15f));
             }
-            if (Mod(x, 8) == 4 && !Road(-1, y))
+            if (road && !WorldRoad(cx, cy, ix - 1, iy))
             {
                 r.Line(Project(float(x), y + .18f),
                        Project(float(x), y + .68f),
                        1.6f * m_zoom,
                        Amber.Alpha(.45f));
             }
-            if (Mod(y, 8) == 4 && !Road(x, -1))
+            if (road && !WorldRoad(cx, cy, ix, iy - 1))
             {
                 r.Line(Project(x + .18f, float(y)),
                        Project(x + .68f, float(y)),
                        1.6f * m_zoom,
                        Amber.Alpha(.45f));
             }
-            if ((Mod(x, 8) == 2 || Mod(x, 8) == 5) && !road)
+            if (!road && WorldHash(cx, cy, ix * 13 + iy) % 23 == 0)
             {
                 r.Line(b, c, 2 * m_zoom, Cyan.Alpha(.12f));
             }
@@ -210,12 +223,16 @@ void CityScene::DrawBuilding(Renderer& r, const Building& b) const
 
     float scale = (b.id == "arcadia" ? 1.4f : .95f) * m_zoom;
     const float maxSign = std::max(95.f, (b.w + b.d) * 24.f) * m_zoom;
-    const float measured = r.MeasureText(b.sign, scale);
+    const float nearestX = std::max(b.x, std::min(b.x + b.w, m_player.x));
+    const float nearestY = std::max(b.y, std::min(b.y + b.d, m_player.y));
+    const bool showName =
+        m_interface && std::hypot(nearestX - m_player.x, nearestY - m_player.y) <= 2.5f;
+    const float measured = showName ? r.MeasureText(b.sign, scale) : 0;
     if (measured > maxSign)
     {
         scale *= maxSign / measured;
     }
-    const float signWidth = r.MeasureText(b.sign, scale) + 14 * m_zoom;
+    const float signWidth = showName ? r.MeasureText(b.sign, scale) + 14 * m_zoom : maxSign * .75f;
     const float signHeight = 16 * scale + 12 * m_zoom;
     const Point sign = Project(b.x + b.w * .55f, b.y + b.d, b.height * .65f);
     const float pulse = .86f + .14f * std::sin(m_time * 2 + b.palette);
@@ -233,8 +250,11 @@ void CityScene::DrawBuilding(Renderer& r, const Building& b) const
            {sign.x + signWidth * .5f, sign.y - 6 * m_zoom + signHeight},
            1,
            neon.Alpha(opacity * .5f));
-    r.Text(sign.x - signWidth * .5f + 7 * m_zoom, sign.y, b.sign, scale, neon.Shade(pulse));
-    if (b.id == "arcadia")
+    if (showName)
+    {
+        r.Text(sign.x - signWidth * .5f + 7 * m_zoom, sign.y, b.sign, scale, neon.Shade(pulse));
+    }
+    if (showName && b.id == "arcadia")
     {
         r.Text(sign.x - signWidth * .5f,
                sign.y + signHeight + 2 * m_zoom,

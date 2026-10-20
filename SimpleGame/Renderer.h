@@ -12,8 +12,8 @@
 class Renderer
 {
 public:
-    static constexpr float Width = 1280.f;
-    static constexpr float Height = 800.f;
+    static float Width;
+    static float Height;
     static constexpr float TextScale = 1.3f;
     Renderer(int width, int height);
     ~Renderer();
@@ -91,7 +91,7 @@ private:
     GLuint m_program = 0, m_vao = 0, m_vbo = 0, m_meshVbo = 0;
     GLuint m_fallbackTexture = 0;
     PostProcessing m_post;
-    GLint m_linearOutput = -1, m_emissionGain = -1;
+    GLint m_linearOutput = -1, m_emissionGain = -1, m_logicalSize = -1;
     int m_viewX = 0, m_viewY = 0, m_viewWidth = static_cast<int>(Width),
         m_viewHeight = static_cast<int>(Height);
     bool m_hdrScene = false, m_overlay = false;

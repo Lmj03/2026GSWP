@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "CityScene.h"
+#include "WorldLayout.h"
 #include "Resources.h"
 #include <algorithm>
 #include <cmath>
@@ -25,16 +26,29 @@ Color Accent(int palette)
 void CityScene::DrawMap(Renderer& r, bool expanded) const
 {
     const float size = expanded ? 440.f : 152.f;
-    const float left = expanded ? (Renderer::Width - size) * .5f : Renderer::Width - size - 56;
-    const float top = expanded ? (Renderer::Height - size) * .5f - 10 : 113.f;
+    const float left = expanded ? (Renderer::Width - size) * .5f : Renderer::Width - size - 36;
+    const float top = expanded ? (Renderer::Height - size) * .5f - 10 : 36.f;
     r.Rect(left - 12,
            top - 12,
            size + 24,
            size + (expanded ? 72 : 48),
            Color(.012f, .024f, .04f, .95f));
     r.Line({left - 12, top - 12}, {left + size + 12, top - 12}, 2, Cyan.Alpha(.6f));
-    const float radius = expanded ? 36.f : 20.f;
-    const float minX = m_player.x - radius, minY = m_player.y - radius;
+    const float radius = expanded ? 180.f : 20.f;
+    Point center = m_player;
+    if (expanded && !WorldTowns().empty())
+    {
+        float x0 = 100000, y0 = 100000, x1 = -100000, y1 = -100000;
+        for (const auto& town : WorldTowns())
+        {
+            x0 = std::min(x0, town.x * 8.f);
+            y0 = std::min(y0, town.y * 8.f);
+            x1 = std::max(x1, (town.x + town.width) * 8.f);
+            y1 = std::max(y1, (town.y + town.height) * 8.f);
+        }
+        TownScenePoint({(x0 + x1) * .5f, (y0 + y1) * .5f}, center);
+    }
+    const float minX = center.x - radius, minY = center.y - radius;
     const float unit = size / (radius * 2);
     auto mapRect = [&](float x, float y, float width, float height, Color color)
     {
@@ -47,13 +61,44 @@ void CityScene::DrawMap(Renderer& r, bool expanded) const
             r.Rect(x0, y0, x1 - x0, y1 - y0, color);
         }
     };
+    if (expanded)
+    {
+        for (const auto& road : WorldTownRoads())
+        {
+            Point a, b;
+            if (TownScenePoint(WorldTowns()[static_cast<size_t>(road.from)].Center(), a) &&
+                TownScenePoint(WorldTowns()[static_cast<size_t>(road.to)].Center(), b))
+            {
+                mapRect(std::min(a.x, b.x) - 1,
+                        std::min(a.y, b.y) - 1,
+                        std::abs(a.x - b.x) + 3,
+                        std::abs(a.y - b.y) + 3,
+                        Color(.32f, .37f, .39f));
+            }
+        }
+        for (const auto& town : WorldTowns())
+        {
+            Point local;
+            if (!TownScenePoint({town.x * 8.f, town.y * 8.f}, local))
+            {
+                continue;
+            }
+            mapRect(local.x,
+                    local.y,
+                    town.width * 8.f,
+                    town.height * 8.f,
+                    Accent(town.region % 3).Shade(.22f));
+        }
+    }
     for (const auto& chunk : m_chunks)
     {
         mapRect(static_cast<float>(chunk.first * ChunkSize),
                 static_cast<float>(chunk.second * ChunkSize),
                 7.94f,
                 7.94f,
-                Color(.065f, .105f, .14f));
+                WorldTownIndex(m_originX + chunk.first, m_originY + chunk.second) >= 0
+                    ? Color(.065f, .105f, .14f)
+                    : Color(.035f, .05f, .07f));
     }
     for (const Building& building : m_buildings)
     {
@@ -65,6 +110,10 @@ void CityScene::DrawMap(Renderer& r, bool expanded) const
     }
     for (const Citizen& npc : m_citizens)
     {
+        if (!npc.active)
+        {
+            continue;
+        }
         const Point marker(left + (npc.position.x - minX) * unit,
                            top + (npc.position.y - minY) * unit);
         if (marker.x > left + 3 && marker.x < left + size - 3 && marker.y > top + 3 &&
@@ -73,10 +122,30 @@ void CityScene::DrawMap(Renderer& r, bool expanded) const
             r.Ellipse(marker, expanded ? 3.f : 1.5f, expanded ? 3.f : 1.5f, Amber);
         }
     }
-    DrawLevelMap(r, left, top, size, radius);
-    const Point marker(left + size * .5f, top + size * .5f);
-    r.Glow(marker, 12, 12, Cyan);
-    r.Ellipse(marker, 3.5f, 3.5f, White);
+    DrawLevelMap(r, left, top, size, radius, center);
+    if (expanded)
+    {
+        for (const auto& town : WorldTowns())
+        {
+            Point local;
+            if (!TownScenePoint(town.Center(), local))
+            {
+                continue;
+            }
+            const float x = left + (local.x - minX) * unit;
+            const float y = top + (local.y - minY) * unit;
+            if (x > left + 25 && x < left + size - 25 && y > top + 12 && y < top + size - 12)
+            {
+                r.TextFitted(x - 38, y - 8, m_text.Get("town.name." + town.id), .64f, White, 76);
+            }
+        }
+    }
+    const Point marker(left + (m_player.x - minX) * unit, top + (m_player.y - minY) * unit);
+    if (marker.x > left && marker.x < left + size && marker.y > top && marker.y < top + size)
+    {
+        r.Glow(marker, 12, 12, Cyan);
+        r.Ellipse(marker, 3.5f, 3.5f, White);
+    }
     r.Text(left,
            top + size + 10,
            m_text.Get(expanded ? "ui.map_expanded" : "ui.map"),
@@ -84,137 +153,61 @@ void CityScene::DrawMap(Renderer& r, bool expanded) const
            Muted);
     if (expanded)
     {
-        r.Text(left, top + size + 35, m_text.Get("ui.map_streaming"), .92f, Muted);
+        r.Rect(left + 365, top + size + 6, 70, 32, Color(.08f, .2f, .24f));
+        r.Text(left + 375, top + size + 8, m_text.Get("hud.close"), .85f, White);
     }
 }
 
 void CityScene::DrawInterface(Renderer& r) const
 {
-    const bool authored =
-        m_originX >= -256 && m_originX <= 256 && m_originY >= -256 && m_originY <= 256 &&
-        m_authoredChunks.count({static_cast<int>(m_originX), static_cast<int>(m_originY)});
-    r.Rect(0, 0, Renderer::Width, 86, Color(.013f, .025f, .043f, .94f));
-    r.Rect(0, 84, Renderer::Width, 1, Color(.2f, .6f, .65f, .35f));
-    r.Rect(32, 25, 4, 34, Cyan);
-    r.Text(49, 19, m_text.Get("ui.title"), 2.f, White);
-    r.Text(50, 56, m_text.Get("ui.subtitle"), .89f, Muted);
-    r.Text(Renderer::Width * .5f - 127,
-           21,
-           m_text.Get(authored ? "ui.district" : "ui.outskirts"),
-           1.46f,
-           Cyan);
-    r.Text(Renderer::Width * .5f - 127, 52, m_text.Get("ui.authority"), .97f, Muted);
-    r.Text(Renderer::Width - 264, 23, m_text.Get("ui.online"), 1.08f, Cyan);
-    r.Text(Renderer::Width - 264, 50, m_text.Get("ui.curfew"), .97f, Amber);
     DrawMap(r, false);
-
     DrawLevelHud(r);
-
-    const auto& post = r.PostSettings();
-    auto state = [&](bool enabled)
-    {
-        return m_text.Get(enabled ? "ui.post_on" : "ui.post_off");
-    };
-    std::ostringstream exposure;
-    exposure << std::fixed << std::setprecision(2) << post.exposure;
-    r.Rect(32, 280, 352, 146, Color(.012f, .025f, .044f, .9f));
-    r.Rect(32, 280, 3, 146, Cyan);
-    r.Text(49,
-           293,
-           m_text.Get(r.PostAvailable() ? "ui.post_title" : "ui.post_unavailable"),
-           1.08f,
-           Cyan);
-    r.Text(49,
-           322,
-           m_text.Format(
-               "ui.post_lights",
-               {{"all", state(post.enabled && r.PostAvailable())}, {"bloom", state(post.bloom)}}),
-           .94f,
-           White);
-    r.Text(49,
-           347,
-           m_text.Format("ui.post_edges",
-                         {{"vignette", state(post.vignette)}, {"blur", state(post.edgeBlur)}}),
-           .94f,
-           White);
-    r.Text(49, 372, m_text.Format("ui.post_exposure", {{"value", exposure.str()}}), .94f, Muted);
-    r.Text(49, 397, m_text.Get("ui.post_reload"), .92f, Muted);
-
+    DrawStoryHud(r);
+    const float right = Renderer::Width - 214;
+    const int town = WorldTownIndex(m_originX, m_originY);
+    const std::string district = m_text.Get(
+        town >= 0 ? "town.name." + WorldTowns()[static_cast<size_t>(town)].id : "town.roads");
+    r.TextFitted(right, 238, district, .94f, Cyan, 190);
+    r.TextFitted(right,
+                 267,
+                 m_text.Format("hud.social", {{"rep", std::to_string(m_reputation)}}),
+                 .82f,
+                 White,
+                 190);
     const int nearbyCitizenIndex = NearbyCitizen();
     if (nearbyCitizenIndex >= 0 && NearbyLevelInteraction() == -1)
     {
         const Citizen& npc = m_citizens[nearbyCitizenIndex];
-        const Point p = Project(npc.position.x, npc.position.y, 61);
+        const Point p = Project(npc.position.x, npc.position.y, 76);
         const std::string label = m_text.Format("ui.interact", {{"name", npc.name}});
-        const float width = r.MeasureText(label, 1.f) + 14;
-        const float labelScale = std::min(1.08f, (width - 6) / std::max(1.f, width - 14));
-        r.Rect(p.x - width * .5f, p.y - 5, width, 28, Color(.01f, .025f, .04f, .95f));
-        r.Text(p.x - r.MeasureText(label, labelScale) * .5f,
-               p.y,
-               label,
-               labelScale,
-               npc.role == 2 ? Pink : Cyan);
+        const float width = std::min(300.f, r.MeasureText(label, .95f) + 20);
+        r.Rect(p.x - width * .5f, p.y - 5, width, 30, Color(.01f, .025f, .04f, .9f));
+        r.TextFitted(p.x - width * .5f + 10,
+                     p.y,
+                     label,
+                     .95f,
+                     npc.hostile ? Pink : Cyan,
+                     width - 20);
     }
     if (m_noticeTime > 0)
     {
         const bool paged = m_dialoguePages.size() > 1;
-        const float height = r.WrappedHeight(m_notice, 1.08f, 666) + 24 + (paged ? 25 : 0);
-        // Keep the existing dialogue panel size; use its spare padding for larger text.
-        float dialogueScale = 1.17f;
-        const float textHeight = height - 12 - (paged ? 25 : 0);
-        while (dialogueScale > 1.08f && r.WrappedHeight(m_notice, dialogueScale, 666) > textHeight)
-        {
-            dialogueScale = std::max(1.08f, dialogueScale - .01f);
-        }
-        const float top = Renderer::Height - 110 - height;
-        const float left = (Renderer::Width - 700) * .5f;
-        r.Rect(left, top, 700, height, Color(.012f, .028f, .046f, .97f));
-        r.Rect(left, top, 3, height, Cyan);
-        r.TextWrapped(left + 17, top + 6, m_notice, dialogueScale, White, 666);
+        const float width = std::min(620.f, Renderer::Width - 48);
+        const float height = r.WrappedHeight(m_notice, .96f, width - 32) + 24 + (paged ? 25 : 0);
+        const float left = (Renderer::Width - width) * .5f;
+        const float top = Renderer::Height - 24 - height;
+        r.Rect(left, top, width, height, Color(.012f, .028f, .046f, .94f));
+        r.TextWrapped(left + 16, top + 10, m_notice, .96f, White, width - 32);
         if (paged)
         {
-            const std::string hint =
-                m_text.Get(m_dialoguePage + 1 < m_dialoguePages.size() ? "ui.next_dialogue"
-                                                                       : "ui.close_dialogue");
-            r.Text(left + 17,
-                   Renderer::Height - 135,
-                   hint + "  " + std::to_string(m_dialoguePage + 1) + " / " +
+            r.Text(left + 16,
+                   top + height - 25,
+                   std::to_string(m_dialoguePage + 1) + " / " +
                        std::to_string(m_dialoguePages.size()),
-                   .92f,
+                   .82f,
                    Cyan);
         }
     }
-    const float footerTop = Renderer::Height - 92;
-    r.Rect(0, footerTop, Renderer::Width, 92, Color(.012f, .024f, .042f, .96f));
-    r.Line({0, footerTop}, {Renderer::Width, footerTop}, 1, Color(.18f, .48f, .55f, .4f));
-    r.TextFitted(32,
-                 footerTop + 17,
-                 m_text.Get(m_helped ? "ui.player_known" : "ui.player"),
-                 1.03f,
-                 White,
-                 280);
-    r.TextFitted(
-        32,
-        footerTop + 46,
-        m_text.Format("ui.medkit",
-                      {{"value", m_helped ? "0" : "1"}, {"rep", std::to_string(m_reputation)}}),
-        .95f,
-        Muted,
-        280);
-    r.TextFitted(340, footerTop + 17, m_text.Get("ui.controls_move"), 1.03f, Cyan, 570);
-    r.TextFitted(340, footerTop + 46, m_text.Get("ui.controls_view"), .95f, Muted, 570);
-    const std::string coordinate =
-        m_text.Format("ui.chunk",
-                      {{"x", std::to_string(m_originX)}, {"y", std::to_string(m_originY)}});
-    const float width = r.MeasureText(coordinate, 1.03f);
-    const float scale = width > 300 ? 1.03f * 300 / width : 1.03f;
-    r.Text(Renderer::Width - 335, footerTop + 17, coordinate, scale, White);
-    r.TextFitted(Renderer::Width - 335,
-                 footerTop + 46,
-                 m_text.Get("ui.controls_exit"),
-                 .95f,
-                 Muted,
-                 300);
     if (m_map)
     {
         DrawMap(r, true);

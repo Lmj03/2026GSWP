@@ -74,34 +74,5 @@ void CityScene::UpdatePlayer(float dt)
 
 void CityScene::UpdateCitizen(Citizen& npc, float dt, float phase)
 {
-
-    Point target = npc.home;
-    const float distance = Distance(npc.position, m_player);
-    if (distance > 12)
-    {
-        return; // distant actors stay dormant until approached
-    }
-    const float fromHome = Distance(npc.position, npc.home);
-    if (npc.role == 2 && npc.remembersHelp && distance < 2.5f && fromHome < 4)
-    {
-        // Only witnesses near the help event receive this memory.
-        target = {npc.position.x + (npc.position.x - m_player.x),
-                  npc.position.y + (npc.position.y - m_player.y)};
-    }
-    else if (npc.role != 2 && npc.remembersHelp && distance < 3 && distance > 1.1f && fromHome < 4)
-    {
-        target = m_player;
-    }
-    else if (npc.role != 1)
-    {
-        target.x += std::sin(m_time * .35f + phase) * .35f;
-        target.y += std::cos(m_time * .27f + phase) * .35f;
-    }
-    const float d = Distance(npc.position, target);
-    if (d > .1f)
-    {
-        Move(npc.position,
-             (target.x - npc.position.x) / d * dt * .48f,
-             (target.y - npc.position.y) / d * dt * .48f);
-    }
+    UpdateNpc(npc, dt, phase);
 }

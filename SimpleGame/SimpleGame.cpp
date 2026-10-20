@@ -50,6 +50,7 @@ void Resize(int width, int height)
 void Close()
 {
     running = false;
+    city.StopMonitoring();
     // FreeGLUT invokes this while the window's OpenGL context still exists.
     renderer.reset();
     FrameProfiler::Instance().Finish();
@@ -91,6 +92,7 @@ void Timer(int)
         city.Update(dt, keys);
         FrameProfiler::Instance().AddUpdate(FrameProfiler::Milliseconds(updateStart));
     }
+    city.PublishMonitoring(focused);
     glutPostRedisplay();
     glutTimerFunc(16, Timer, 0);
 }
@@ -112,6 +114,10 @@ void KeyDown(unsigned char key, int, int)
     {
         FrameProfiler::Instance().Event("action_key_code=" + std::to_string(key));
     }
+    if (city.HandleInteractionInput(key))
+    {
+        return;
+    }
     if (city.HandleBaseInput(key))
     {
         return;
@@ -130,6 +136,9 @@ void KeyDown(unsigned char key, int, int)
         break;
     case 'r':
         city.ToggleRain();
+        break;
+    case 'j':
+        city.ToggleJournal();
         break;
     case 'm':
         city.ToggleMap();
@@ -196,6 +205,15 @@ void Wheel(int, int direction, int, int)
     FrameProfiler::Instance().Event("zoom_wheel=" + std::to_string(direction));
     city.Zoom(direction);
 }
+
+void Mouse(int button, int state, int x, int y)
+{
+    if (running && renderer && button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
+    {
+        city.HandlePointer(x * Renderer::Width / std::max(1, glutGet(GLUT_WINDOW_WIDTH)),
+                           y * Renderer::Height / std::max(1, glutGet(GLUT_WINDOW_HEIGHT)));
+    }
+}
 }
 
 int main(int argc, char** argv)
@@ -252,11 +270,13 @@ int main(int argc, char** argv)
     glutKeyboardUpFunc(KeyUp);
     glutSpecialFunc(Special);
     glutMouseWheelFunc(Wheel);
+    glutMouseFunc(Mouse);
     glutCloseFunc(Close);
     glutIgnoreKeyRepeat(1);
     previous = std::chrono::steady_clock::now();
     glutTimerFunc(16, Timer, 0);
     glutMainLoop();
+    city.StopMonitoring();
     // Close() released GPU resources before context destruction.
     return 0;
 }

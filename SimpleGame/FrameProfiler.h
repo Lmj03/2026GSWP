@@ -26,6 +26,18 @@ public:
         double submitMs = 0, postMs = 0;
     };
 
+    struct Metrics
+    {
+        Counters counters;
+        std::uint64_t frame = 0;
+        double fps = 0;
+        double intervalMs = 0;
+        double updateMs = 0;
+        double renderMs = 0;
+        double swapMs = 0;
+    };
+
+    const Metrics& LastFrame() const;
     static FrameProfiler& Instance();
     void BeginFrame();
     void BeforeSwap();
@@ -49,6 +61,7 @@ private:
     bool m_started = false, m_diskFailed = false;
     Stage m_stage = Stage::World;
     Counters m_current;
+    Metrics m_metrics;
     std::ofstream m_framesFile, m_eventsFile;
     std::string m_rows;
     std::uint64_t m_frameId = 0, m_windowFrames = 0, m_drawTotal = 0;

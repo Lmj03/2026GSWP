@@ -105,6 +105,11 @@ void FrameProfiler::AddUpdate(double milliseconds)
     ++m_pendingUpdates;
 }
 
+const FrameProfiler::Metrics& FrameProfiler::LastFrame() const
+{
+    return m_metrics;
+}
+
 void FrameProfiler::DrawArrays(GLenum mode, GLint first, GLsizei count)
 {
     glDrawArrays(mode, first, count);
@@ -152,6 +157,12 @@ void FrameProfiler::EndFrame()
     const auto& c = m_current;
     const std::uint64_t draws = c.draws[0] + c.draws[1] + c.draws[2];
     ++m_frameId;
+    m_metrics.counters = c;
+    m_metrics.frame = m_frameId;
+    m_metrics.intervalMs = interval;
+    m_metrics.updateMs = m_updateMs;
+    m_metrics.renderMs = m_renderMs;
+    m_metrics.swapMs = swap;
     ++m_windowFrames;
     m_drawTotal += draws;
     m_drawMin = std::min(m_drawMin, draws);
@@ -174,6 +185,7 @@ void FrameProfiler::EndFrame()
     const double elapsed = std::chrono::duration<double>(now - m_windowStart).count();
     if (elapsed >= 1.0)
     {
+        m_metrics.fps = static_cast<double>(m_windowFrames) / elapsed;
         std::ostringstream line;
         line << std::fixed << std::setprecision(1)
              << "[Profile] FPS: " << static_cast<double>(m_windowFrames) / elapsed

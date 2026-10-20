@@ -22,12 +22,8 @@ bool CityScene::LoadLevelOne()
     std::string source;
     if (!ReadResource(L"Data/level1.level", source))
     {
-        std::cerr << "Data/level1.level 파일을 읽을 수 없습니다.\n";
         return false;
     }
-
-    std::vector<Enemy> enemies;
-    std::set<std::string> ids;
     Point supply;
     bool version = false;
     bool hasSupply = false;
@@ -46,7 +42,7 @@ bool CityScene::LoadLevelOne()
         if (type == "version")
         {
             int number = 0;
-            valid = bool(input >> number) && number == 1 && !version;
+            valid = bool(input >> number) && number == 2 && !version;
             version = true;
         }
         else if (type == "supply")
@@ -55,32 +51,18 @@ bool CityScene::LoadLevelOne()
                     CanStand(supply.x, supply.y, .35f);
             hasSupply = true;
         }
-        else if (type == "enemy")
-        {
-            Enemy enemy;
-            valid = bool(input >> enemy.id >> enemy.home.x >> enemy.home.y >> enemy.maxHealth >>
-                         enemy.experience) &&
-                    enemy.maxHealth > 0 && enemy.maxHealth <= 10000 && enemy.experience > 0 &&
-                    enemy.experience <= 10000 && ids.insert(enemy.id).second &&
-                    CanStand(enemy.home.x, enemy.home.y, .25f) &&
-                    Separation(enemy.home, m_spawn) >= 4.f;
-            enemy.position = enemy.home;
-            enemy.health = enemy.maxHealth;
-            enemies.push_back(enemy);
-        }
         if (!valid || (input >> trailing))
         {
-            std::cerr << "레벨 1 데이터 형식 또는 배치 오류: " << line << '\n';
+            std::cerr << "Invalid level1.level record: " << line << '\n';
             return false;
         }
     }
-    if (!version || !hasSupply || enemies.size() != 3)
+    if (!version || !hasSupply)
     {
-        std::cerr << "레벨 1에는 version 1, 보급 상자, 적 3명이 필요합니다.\n";
         return false;
     }
     m_supply = supply;
-    SetEnemies(enemies);
+    SetEnemies({});
     return true;
 }
 
@@ -118,34 +100,35 @@ bool CityScene::InteractLevelOne()
     return false;
 }
 
-Point CityScene::LevelObjective() const
+bool CityScene::LevelObjective(Point& target) const
 {
     if (!m_supplyOpened)
     {
-        return m_supply;
+        return LevelLocal(m_supply, target);
+    }
+    if (m_tutorialDefeats >= 3 && m_tutorialLoot >= 3)
+    {
+        return LevelLocal(m_spawn, target);
     }
     float closest = std::numeric_limits<float>::max();
-    Point target = m_spawn;
-    for (const Enemy& enemy : m_enemies)
+    bool found = false;
+    for (const EnemyActor& enemy : m_enemies)
     {
-        if (enemy.lootedOnce && !m_levelComplete)
-        {
-            continue;
-        }
-        if (m_levelComplete && enemy.health <= 0 && !enemy.loot)
+        if (!enemy.tutorial || !enemy.EnabledInHierarchy() || (enemy.health <= 0 && !enemy.loot))
         {
             continue;
         }
         Point local;
-        if (LevelLocal(enemy.position, local))
+        if (EnemyLocal(enemy, enemy.position, local))
         {
             const float distance = Separation(local, m_player);
             if (distance < closest)
             {
                 closest = distance;
-                target = enemy.position;
+                target = local;
+                found = true;
             }
         }
     }
-    return target;
+    return found;
 }

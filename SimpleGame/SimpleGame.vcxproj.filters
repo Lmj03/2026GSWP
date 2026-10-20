@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="소스 파일">
@@ -23,6 +23,8 @@
     <Text Include="..\docs\LEVEL_ONE.md" />
     <Text Include="..\docs\BASE_AND_EQUIPMENT.md" />
     <Text Include="..\docs\SCENE_GRAPH.md" />
+    <Text Include="..\docs\ACT_ONE_IMPLEMENTATION.md" />
+    <Text Include="..\docs\STORY_OUTLINE.md" />
     <Text Include="..\docs\PROFILING.md" />
     <Text Include="..\docs\performance\2026-09-22-draw-call-report.md" />
   </ItemGroup>
@@ -43,6 +45,10 @@
     <ClInclude Include="Actor.h" />
     <ClInclude Include="SceneGraph.h" />
     <ClInclude Include="GameActors.h" />
+    <ClInclude Include="WorldLayout.h" />
+    <ClInclude Include="TelemetryClient.h" />
+    <ClInclude Include="StoryActors.h" />
+    <ClInclude Include="StoryState.h" />
     <ClInclude Include="GameplayTypes.h" />
     <ClInclude Include="RenderTypes.h" />
     <ClInclude Include="Resources.h" />
@@ -77,6 +83,17 @@
     <ClCompile Include="FrameProfiler.cpp" />
     <ClCompile Include="MeshCache.cpp" />
     <ClCompile Include="WorldStreaming.cpp" />
+    <ClCompile Include="WorldPopulation.cpp" />
+    <ClCompile Include="TownPopulation.cpp" />
+    <ClCompile Include="InterfaceInput.cpp" />
+    <ClCompile Include="WorldLayout.cpp" />
+    <ClCompile Include="TelemetryClient.cpp" />
+    <ClCompile Include="GameMonitoring.cpp" />
+    <ClCompile Include="StoryActors.cpp" />
+    <ClCompile Include="StoryProgression.cpp" />
+    <ClCompile Include="StoryRendering.cpp" />
+    <ClCompile Include="NpcBehavior.cpp" />
+    <ClCompile Include="NpcDialogue.cpp" />
     <ClCompile Include="LevelOne.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
@@ -94,12 +111,15 @@
     <None Include="Data\afterglow.district" />
     <None Include="Data\Meshes\unit_quad.mesh" />
     <None Include="Data\level1.level" />
+    <None Include="Data\Story\act1.story" />
     <None Include="Shaders\PostProcess.vs" />
     <None Include="Shaders\BloomExtract.fs" />
     <None Include="Shaders\GaussianBlur.fs" />
     <None Include="Shaders\PostComposite.fs" />
     <None Include="Data\Rendering\postprocess.cfg" />
     <None Include="Data\Rendering\batching.cfg" />
+    <None Include="Data\Monitoring\monitor.cfg" />
+    <None Include="Data\World\towns.world" />
     <None Include="Data\Locale\ko.txt" />
   </ItemGroup>
 </Project>

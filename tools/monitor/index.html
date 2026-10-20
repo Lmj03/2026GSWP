@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>네온 베일 · 월드 모니터</title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="/app.js" defer></script>
+</head>
+<body>
+    <main>
+        <header>
+            <div><p class="eyebrow">NEON VEIL / LOCAL MONITOR</p><h1>월드 관측실</h1><p class="muted">현재 로드된 청크와 Actor의 상태 · JSON으로 갱신</p></div>
+            <div class="connection"><span id="connection" class="badge warn" role="status">게임 데이터 대기 중</span><p id="received" class="muted">게임과 수신 서버를 실행하세요.</p><p id="simulation">—</p></div>
+        </header>
+
+        <section class="stats" aria-label="전체 집계">
+            <article><p>NPC · 로드 / 활동 중</p><strong id="npc-count">—</strong><small id="npc-extra">로드 / 생존 / 비활성</small></article>
+            <article><p>몹 · 전투 가능</p><strong id="mob-count">—</strong><small id="mob-extra">로드 / 생존 / 제압됨</small></article>
+            <article><p>적대 NPC · 생존</p><strong id="hostile-count">—</strong><small>몹 수에 중복 집계하지 않음</small></article>
+            <article><p>월드의 마을</p><strong id="village-count">—</strong><small id="world-extra">청크 / Actor</small></article>
+            <article><p>FPS</p><strong id="fps">—</strong><small>최근 1초의 완료된 프레임</small></article>
+            <article><p>Draw calls / frame</p><strong id="draws">—</strong><small id="draw-extra">월드 / UI / 후처리</small></article>
+        </section>
+
+        <section class="panel player"><div><h2>플레이어 / 스토리</h2><p id="player">데이터 대기 중</p><p id="objective" class="muted">—</p></div><div><h2>렌더링 / 전송</h2><p id="performance">—</p><p id="transport" class="muted">—</p></div></section>
+
+        <section class="panel">
+            <div class="section-title"><h2>마을별 전체 상태</h2><span class="muted">마을을 누르면 해당 NPC로 필터링됩니다.</span></div>
+            <p class="muted scope">총 7개 마을 · 마을당 7 × 7 청크, 초기 NPC 약 70명. 명부는 전체 마을을 포함하고, 로드 NPC/몹과 평균 수치는 현재 관측 범위만 집계합니다.</p>
+            <div id="villages" class="villages"><p class="empty">수신된 마을이 없습니다.</p></div>
+        </section>
+
+        <section class="panel" id="npc-panel">
+            <div class="section-title"><h2>NPC 상태</h2><span id="npc-results" class="muted">0명</span></div>
+            <div class="filters">
+                <label>이름 / Actor ID<input type="search" id="search" placeholder="검색" autocomplete="off"></label>
+                <label>마을<select id="village-filter"><option value="">모든 마을</option></select></label>
+                <label>직업<select id="job-filter"><option value="">모든 직업</option></select></label>
+                <label>행동<select id="activity-filter"><option value="">모든 행동</option></select></label>
+                <label>관계 / 상태<select id="state-filter"><option value="">전체</option><option value="active">로드 · 활동 중</option><option value="loaded">로드된 NPC</option><option value="unloaded">미로드 · 명부</option><option value="travelling">마을 간 이동</option><option value="hostile">적대 · 생존</option><option value="high">악명 60 이상</option><option value="down">제압 / 사망</option><option value="inactive">비활성</option><option value="story">스토리 NPC</option></select></label>
+            </div>
+            <div class="table-scroll"><table><thead><tr><th>NPC / ID</th><th>마을</th><th>직업</th><th>현재 행동</th><th>체력</th><th>악명 / 신뢰</th><th>범죄 / 기여</th><th>관계 / 활성 상태</th><th>청크 · 좌표</th></tr></thead><tbody id="npc-rows"><tr><td colspan="9" class="empty">게임 JSON을 기다리고 있습니다.</td></tr></tbody></table></div>
+            <p class="muted scope">전체 마을 명부와 이동 중인 NPC를 표시합니다. 미로드 NPC는 도로 이동을 간략 시뮬레이션하며 직업/전투 활동은 관측 중에만 갱신합니다. 체력 0은 제압/사망, 스토리 등장 대기는 비활성으로 표시합니다. 상세 버튼에서 모든 수신 필드를 확인할 수 있습니다.</p>
+            <details id="npc-detail"><summary>선택한 NPC 상세</summary><pre id="npc-json">NPC 이름 옆의 상세 버튼을 누르세요.</pre></details>
+        </section>
+
+        <section class="panel">
+            <div class="section-title"><h2>몹 상태</h2><span class="muted">로드된 EnemyActor · 연출 대기와 전투 가능 상태 구분</span></div>
+            <div class="table-scroll"><table><thead><tr><th>몹 / Actor ID</th><th>마을</th><th>체력</th><th>상태</th><th>공격 준비 / 대기</th><th>재생성 대기</th><th>전리품</th><th>청크 · 좌표</th></tr></thead><tbody id="mob-rows"><tr><td colspan="8" class="empty">수신된 몹이 없습니다.</td></tr></tbody></table></div>
+        </section>
+
+        <section class="panel">
+            <div class="section-title"><h2>수신 메시지</h2><button id="download" disabled>최신 JSON 저장</button></div>
+            <p id="message-meta" class="muted">스키마 1 · HTTP POST /api/snapshot → HTML에서 1초마다 조회</p>
+            <p id="record-status" class="muted">수신 서버는 기본적으로 JSONL 로그를 기록합니다.</p>
+            <details id="raw-detail"><summary>최신 JSON 보기</summary><pre id="raw-json">아직 수신된 메시지가 없습니다.</pre></details>
+        </section>
+        <footer>localhost 전용 관측 도구 · 수신이 끊기면 마지막 데이터를 유지하고 지연 상태를 표시합니다.</footer>
+    </main>
+</body>
+</html>

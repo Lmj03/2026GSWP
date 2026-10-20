@@ -15,7 +15,7 @@ void CityScene::CollectLoot(Enemy& enemy, float dt)
     }
     enemy.pickupDelay = std::max(0.f, enemy.pickupDelay - dt);
     Point local;
-    if (enemy.pickupDelay > 0 || !LevelLocal(enemy.position, local) ||
+    if (enemy.pickupDelay > 0 || !EnemyLocal(enemy, enemy.position, local) ||
         std::hypot(local.x - m_player.x, local.y - m_player.y) > 1.6f ||
         !ClearReach(m_player, local))
     {
@@ -37,6 +37,10 @@ void CityScene::CollectLoot(Enemy& enemy, float dt)
     ++m_recovery;
     ++bundles;
     enemy.loot = false;
+    if (enemy.tutorial && !enemy.lootedOnce)
+    {
+        m_tutorialLoot = std::min(3, m_tutorialLoot + 1);
+    }
     enemy.lootedOnce = true;
     enemy.drop = Materials{};
     if (bundles > 0)

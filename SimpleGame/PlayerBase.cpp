@@ -28,13 +28,7 @@ void CityScene::OpenBase()
     m_noticeTime = 0;
     m_baseNotice = m_text.Get("base.welcome");
 
-    const bool ready =
-        m_supplyOpened && std::all_of(m_enemies.begin(),
-                                      m_enemies.end(),
-                                      [](const Enemy& enemy)
-                                      {
-                                          return enemy.defeatedOnce && enemy.lootedOnce;
-                                      });
+    const bool ready = m_supplyOpened && m_tutorialDefeats >= 3 && m_tutorialLoot >= 3;
     if (ready && !m_levelComplete)
     {
         m_levelComplete = true;
@@ -262,7 +256,7 @@ void CityScene::DrawBaseProps(Renderer& r) const
     r.Rect(locker.x - 12 * s, locker.y - 32 * s, 24 * s, 32 * s, Color(.1f, .23f, .3f));
     r.Line({locker.x, locker.y - 29 * s}, {locker.x, locker.y - 3 * s}, 1, BaseCyan);
     r.Rect(locker.x + 3 * s, locker.y - 18 * s, 3 * s, 7 * s, BaseGold);
-    if (m_interface)
+    if (m_interface && std::hypot(m_player.x - local.x, m_player.y - local.y) < 2.5f)
     {
         const std::string title = m_text.Get("base.marker");
         r.Text(center.x - r.MeasureText(title, 1.f) * .5f, center.y - 73 * s, title, 1.f, BaseCyan);
@@ -275,6 +269,8 @@ void CityScene::DrawBaseInterface(Renderer& r) const
     r.Rect(180, 92, 920, 616, Color(.02f, .045f, .07f, .99f));
     r.Rect(180, 92, 920, 3, BaseCyan);
     r.Text(212, 113, m_text.Get("base.title"), 1.45f, BaseCyan);
+    r.Rect(1000, 113, 72, 32, Color(.08f, .2f, .24f));
+    r.Text(1010, 115, m_text.Get("hud.close"), .85f, BaseWhite);
     r.Text(212,
            153,
            m_text.Get(m_storagePage ? "base.storage_tab" : "base.workshop_tab"),
@@ -379,5 +375,4 @@ void CityScene::DrawBaseInterface(Renderer& r) const
     }
     r.Line({212, 567}, {1068, 567}, 1, BaseCyan.Alpha(.35f));
     r.TextWrapped(212, 583, m_baseNotice, 1.03f, BaseGold, 856);
-    r.Text(212, 669, m_text.Get("base.close_help"), .98f, BaseMuted);
 }

@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "CityScene.h"
 #include "Resources.h"
+#include "WorldLayout.h"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -30,6 +31,11 @@ bool CityScene::Load()
         return false;
     }
     std::string source;
+    if (!LoadWorldLayout(source))
+    {
+        std::cerr << source << '\n';
+        return false;
+    }
     if (!ReadResource(L"Data/afterglow.district", source))
     {
         std::cerr << "Data/afterglow.district 지역 파일을 불러올 수 없습니다.\n";
@@ -100,6 +106,13 @@ bool CityScene::Load()
                     ids.insert(npc.id).second;
             if (valid)
             {
+                npc.occupation = npc.role == 2   ? Occupation::Raider
+                                 : npc.role == 1 ? Occupation::Merchant
+                                                 : Occupation::Resident;
+                if (npc.id == "mechanic")
+                {
+                    npc.occupation = Occupation::Mechanic;
+                }
                 npc.home = npc.position;
                 LabelSpaces(npc.name);
                 AddCitizen(npc);
@@ -169,12 +182,23 @@ bool CityScene::Load()
     {
         return false;
     }
+    if (!LoadStory())
+    {
+        std::cerr << "Data/Story/act1.story 오류\n";
+        return false;
+    }
     Reset();
     return true;
 }
 
 void CityScene::Reset()
 {
+    ++m_monitorReset;
+    UnloadStreamEnemies(false);
+    UnloadTownActors();
+    m_enemyMemory.clear();
+    m_populationSeed =
+        static_cast<std::uint64_t>(std::chrono::steady_clock::now().time_since_epoch().count());
     m_originX = m_originY = 0;
     m_generated.clear();
     m_remembered.clear();
@@ -185,9 +209,13 @@ void CityScene::Reset()
     m_reputation = 0;
     m_time = m_walk = 0;
     ResetProgression();
+    ResetStory();
+    InitializeTownPopulation();
     ShowNotice(m_text.Get("notice.start"));
     RefreshWorld();
     Recenter();
+    RefreshTownActors();
+    SpawnEnemies(true);
 }
 
 Point CityScene::Project(float x, float y, float height) const
@@ -267,6 +295,11 @@ void CityScene::Update(float dt, const bool* keys)
     }
     SyncSceneGraph();
     m_sceneGraph.Update(dt);
+    if (CanSimulate() && m_health > 0)
+    {
+        UpdateTownPopulation(dt);
+        UpdatePopulation(dt);
+    }
     m_input = nullptr;
 }
 
@@ -276,7 +309,7 @@ int CityScene::NearbyCitizen() const
     float nearest = 1.65f;
     for (size_t i = 0; i < m_citizens.size(); ++i)
     {
-        if (!m_citizens[i].EnabledInHierarchy())
+        if (!m_citizens[i].EnabledInHierarchy() || !m_citizens[i].active)
         {
             continue;
         }
@@ -332,7 +365,7 @@ void CityScene::Interact()
         CloseBase();
         return;
     }
-    if (m_health <= 0 || m_map)
+    if (m_health <= 0 || m_map || m_story.sceneActive || m_journalOpen)
     {
         return;
     }
@@ -349,6 +382,10 @@ void CityScene::Interact()
         }
         return;
     }
+    if (InteractStory())
+    {
+        return;
+    }
     if (InteractLevelOne())
     {
         return;
@@ -360,30 +397,12 @@ void CityScene::Interact()
         return;
     }
     Citizen& npc = m_citizens[index];
-    if (npc.role == 0 && !m_helped)
+    if (npc.story)
     {
-        m_helped = true;
-        m_reputation += 5;
-        for (Citizen& witness : m_citizens)
-        {
-            if (Distance(witness.position, npc.position) < 4.5f)
-            {
-                witness.remembersHelp = true;
-                m_remembered.insert(witness.id);
-            }
-        }
-        npc.remembersHelp = true;
-        m_remembered.insert(npc.id);
-        ShowNotice(m_text.Get("notice.helped"));
+        ShowNotice(m_text.Get("story.after." + npc.id.substr(6)));
         return;
     }
-    const std::string role = npc.role == 2 ? "lookout" : npc.role == 1 ? "merchant" : "resident";
-    std::string key = npc.remembersHelp ? npc.dialogueRemembered : npc.dialogueNeutral;
-    if (key.empty())
-    {
-        key = "dialogue." + role + (npc.remembersHelp ? ".remembered" : ".neutral");
-    }
-    ShowNotice(m_text.Format(key, {{"name", npc.name}}));
+    OpenNpcDialogue(npc);
 }
 
 void CityScene::Draw(Renderer& r)

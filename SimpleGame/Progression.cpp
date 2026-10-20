@@ -30,6 +30,9 @@ void CityScene::ResetProgression()
     m_recovery = 2;
     m_supplyOpened = false;
     m_levelComplete = false;
+    m_tutorialDefeats = 0;
+    m_tutorialLoot = 0;
+    m_populationTimer = 0;
     m_attackDirection = {1, 0};
     m_attackVisualDirection = m_attackDirection;
     m_attackCooldown = 0;

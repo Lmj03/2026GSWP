@@ -101,7 +101,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>.\Dependencies;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);opengl32.lib;freeglut.lib;glew32.lib;</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);opengl32.lib;freeglut.lib;glew32.lib;winhttp.lib;</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -116,7 +116,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>.\Dependencies\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);freeglut.lib;glew32.lib;</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);freeglut.lib;glew32.lib;winhttp.lib;</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -135,7 +135,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>.\Dependencies;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);freeglut.lib;glew32.lib;</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);freeglut.lib;glew32.lib;winhttp.lib;</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -153,7 +153,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);freeglut.lib;glew32.lib;</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);freeglut.lib;glew32.lib;winhttp.lib;</AdditionalDependencies>
       <AdditionalLibraryDirectories>.\Dependencies\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -163,6 +163,8 @@
     <Text Include="..\docs\LEVEL_ONE.md" />
     <Text Include="..\docs\BASE_AND_EQUIPMENT.md" />
     <Text Include="..\docs\SCENE_GRAPH.md" />
+    <Text Include="..\docs\ACT_ONE_IMPLEMENTATION.md" />
+    <Text Include="..\docs\STORY_OUTLINE.md" />
     <Text Include="..\docs\PROFILING.md" />
     <Text Include="..\docs\performance\2026-09-22-draw-call-report.md" />
   </ItemGroup>
@@ -174,6 +176,10 @@
     <ClInclude Include="Actor.h" />
     <ClInclude Include="SceneGraph.h" />
     <ClInclude Include="GameActors.h" />
+    <ClInclude Include="WorldLayout.h" />
+    <ClInclude Include="TelemetryClient.h" />
+    <ClInclude Include="StoryActors.h" />
+    <ClInclude Include="StoryState.h" />
     <ClInclude Include="GameplayTypes.h" />
     <ClInclude Include="RenderTypes.h" />
     <ClInclude Include="Resources.h" />
@@ -201,6 +207,17 @@
     <ClCompile Include="CombatRendering.cpp" />
     <ClCompile Include="Loot.cpp" />
     <ClCompile Include="WorldStreaming.cpp" />
+    <ClCompile Include="WorldPopulation.cpp" />
+    <ClCompile Include="TownPopulation.cpp" />
+    <ClCompile Include="InterfaceInput.cpp" />
+    <ClCompile Include="WorldLayout.cpp" />
+    <ClCompile Include="TelemetryClient.cpp" />
+    <ClCompile Include="GameMonitoring.cpp" />
+    <ClCompile Include="StoryActors.cpp" />
+    <ClCompile Include="StoryProgression.cpp" />
+    <ClCompile Include="StoryRendering.cpp" />
+    <ClCompile Include="NpcBehavior.cpp" />
+    <ClCompile Include="NpcDialogue.cpp" />
     <ClCompile Include="LevelOne.cpp" />
     <ClCompile Include="PlayerBase.cpp" />
     <ClCompile Include="SimpleGame.cpp" />
@@ -220,9 +237,12 @@
     <None Include="Shaders\PostComposite.fs" />
     <None Include="Data\Rendering\postprocess.cfg" />
     <None Include="Data\Rendering\batching.cfg" />
+    <None Include="Data\Monitoring\monitor.cfg" />
+    <None Include="Data\World\towns.world" />
     <None Include="Data\afterglow.district" />
     <None Include="Data\Meshes\unit_quad.mesh" />
     <None Include="Data\level1.level" />
+    <None Include="Data\Story\act1.story" />
     <None Include="Data\Locale\ko.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
