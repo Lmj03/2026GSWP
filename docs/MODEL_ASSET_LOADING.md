@@ -1,0 +1,134 @@
+# 모델 에셋 로딩과 애니메이션
+
+작성일: 2026-10-26
+
+## 기준 자료와 적용 범위
+
+`.modeling-dev/Art/Characters/README.md`, `LowPoly/README.md`, 캐릭터 manifest·동작 sidecar,
+정적 catalog의 좌표·인덱스 계약을 기준으로 구현했다. 게임 규칙은 `GAME_DESIGN.md`와
+`SCENE_GRAPH.md`를 유지한다. 원본 `.blend`·OBJ·GLB·ZIP을 변경하거나 복제하지 않았다.
+모델 수정은 Blender에서 수행하고 GLB를 다시 내보낸다. 게임은 `.blend`와 ZIP을 직접 읽지 않는다.
+
+이번 구현은 C++14 / OpenGL 3.3이다. 빌드·게임 실행·화면 결과 확인은 수행하지 않았다.
+전달 파일과 프로젝트 등록에 대한 정적 검사는 실제 C++ 로더나 GPU 동작을 검증한 것이 아니다.
+
+## 파일 찾기와 추가 절차
+
+1. `NEON_ART_ROOT` 환경 변수가 있으면 그 폴더를 Art 루트로 사용한다. 한글 경로를 지원한다.
+2. 환경 변수가 없으면 실행 파일 폴더부터 최대 다섯 단계의 상위 폴더에서
+   `Art`, `Data/Art`, `.modeling-dev/Art`를 순서대로 찾는다. 현재 작업 폴더의 모델링 에셋도 이 경로로 찾는다.
+3. `Characters/manifest.json`의 `assets[].id/glb`로 캐릭터를 등록한다.
+   GLB 옆의 같은 이름 `.animations.json`이 있으면 동작 메타데이터로 우선 사용한다.
+   없으면 manifest의 `clips`를 사용한다.
+4. `LowPoly/catalog.json`의 `environment`와 `slots`를 등록한다.
+   `PartId(slot, index)`는 슬롯의 고정 인덱스로 정적 파트 ID를 찾는다. 재정렬하거나 ID를 재사용하지 않는다.
+5. 새 파일을 위 목록에 추가하고 게임을 재시작한다. 파일 이름만으로 자동 스캔하지 않으므로
+   작업 중인 임시 내보내기나 오래된 GLB가 임의로 등록되지 않는다.
+
+각 모델은 첫 요청에 한 번 읽고 같은 ID의 모든 Actor가 공유한다. 실패도 ID별로 한 번 기록하며,
+매 프레임 디스크 접근이나 실패 재시도를 하지 않는다. `ModelLibrary::Initialize(root)`로
+명시적인 루트를 지정할 수도 있다. 이미 참조된 모델은 공유 포인터로 수명을 유지한다.
+재초기화 후 기존 `ModelVisual`의 동일 ID를 다시 읽는 핫 리로드는 제공하지 않는다.
+
+배포할 때는 `.modeling-dev`라는 작업 폴더 대신, 필요한 Art의 런타임 파일과 카탈로그를
+실행 파일 옆 `Art`에 별도로 포함한다. 원본 Blender·미리보기·제작 스크립트는 게임에 필요하지 않다.
+이번 커밋에는 별도 Git 작업 폴더인 `.modeling-dev`나 그 내부 원본 에셋을 포함하지 않는다.
+
+`SimpleGame/Data/Rendering/models.cfg`의 `enabled 0`으로 모델 표시를 끄고 기존 도형 표시를 사용할 수 있다.
+모델 또는 셰이더를 읽지 못한 경우에도 기존 캐릭터 표시를 유지한다. 모니터링 상태·전투 판정·월드 배치는 유지한다.
+
+## 형식과 좌표 계약
+
+| 항목 | 지원 |
+|---|---|
+| GLB | glTF 2.0, 내장 단일 BIN, 선택된 scene의 삼각형 메시, 인덱스 메시 |
+| 정점 | 위치·법선, 선택 COLOR_0, JOINTS_0/WEIGHTS_0의 최대 4개 가중치 |
+| 스킨 | 본 계층, inverse bind matrices, 정규화된 가중치, 모델당 최대 48개 팔레트 행렬 |
+| 재질 | 불투명 단색 base color와 emissive, 선택 emissive strength; 재질별 색을 정점에 보존 |
+| 애니메이션 | 위치·쿼터니언 회전·스케일, STEP / LINEAR / CUBICSPLINE |
+| 재생 | 이름으로 선택, 반복/마지막 포즈 고정, 속도 배율, 포즈 간 블렌딩, 소켓 노드 조회 |
+| OBJ/MTL | 삼각형, 양수·음수 인덱스, 명시적 법선, 여러 `usemtl`, `Kd` / `Ke` |
+
+GLB는 Y 위 / -Z 정면 / 발바닥 중앙 원점을 유지한다. 정적 OBJ는 읽을 때 한 번
+`(x,y,z) → (x,z,-y)`로 변환한다. 파트별 중앙 정렬·스케일 보정은 하지 않는다.
+전체 본 노드를 부모부터 계산하며, 원본 배열이 부모 순서라고 가정하지 않는다.
+스킨 행렬은 `jointWorld × inverseBind`다. 메시 노드 변환을 여기에 중복 적용하지 않는다.
+스킨 없는 GLB 메시도 노드 행렬을 팔레트에 넣어 노드 애니메이션을 지원한다.
+
+애니메이터는 클립 시간을 보간한 뒤 로컬 TRS를 블렌딩하고 계층 행렬을 만든다.
+쿼터니언 LINEAR는 최단 경로 구면 보간이며 CUBICSPLINE은 glTF의 시간 간격을 곱한 Hermite 보간 후 정규화한다.
+GPU에는 정점 데이터를 다시 만들지 않고 해당 인스턴스의 팔레트만 보낸다.
+
+텍스처, 투명/마스크 재질, 모프, 압축 메시, 필수 glTF 확장, 4개를 넘는 스킨 영향은 이번 범위에 포함하지 않는다.
+해당 형식은 가능한 경우 오류로 반환해 기존 표시로 복귀한다. 일반적인 PBR 조명·그림자·런타임 IK·리타게팅 로더가 아니다.
+미지원 기능이 필요한 에셋이 추가되면 내보내기 계약과 로더를 함께 확장한다.
+
+## 기존 Actor 연결
+
+`CityScene`이 `ModelLibrary`를 소유한다. `PlayerActor`, `CitizenActor`, `EnemyActor`는 각각
+독립된 `ModelVisual`과 `Animator`를 가진다. 갱신은 기존 `CanSimulate` 조건을 따르며
+그리기에서 게임 상태나 동작 시간을 변경하지 않는다. 원점 이동 시에는 기존 작은 장면 좌표를 투영한다.
+
+- 플레이어: `PLAYER_Vigilante`, idle/walk/run/attack_melee/defeat.
+- NPC: 현재 직업 0~6을 resident/merchant/raider/worker/medic/mechanic/guard에 연결.
+- 일반 적: `ENEMY_street_gang`. 다른 5종 적도 ID로 불러올 수 있으나 새 전투 유형·생성 규칙을 추가하지 않았다.
+- 기업 후손: 대응하는 전용 리깅 에셋이 없어 기존 표시를 유지한다.
+- NPC·적의 사망 표식, 전리품, 체력·공격 예고와 플레이어 칼의 기존 표시·판정은 유지한다.
+- 환경 OBJ: 읽고 표시하는 API를 제공한다. 건물 충돌·간판·수제 배치의 일괄 치환은 하지 않았다.
+
+전달 자료의 `root_motion`, `contact_frames`, 권장 blend-in 값을 보존한다. 현재 기본 연결은
+제자리 보행과 기존 이동 규칙을 사용하며 발 고정, 속도에 맞춘 정확한 보폭, 턴 루트 회전 소비,
+점프 물리와 시각 높이 조정은 아직 연결하지 않았다. 턴 클립을 직접 재생할 때는
+Actor yaw에 같은 회전을 다시 더하지 않는다. `Animator::Socket("weapon_R", matrix)`가 반환하는 값은
+모델 공간 노드 행렬이므로 장비 배치 시 공통 배율·Actor 방향·장면 투영을 한 번 더 적용한다.
+
+```cpp
+// CityScene 내부처럼 작은 장면 좌표를 Project로 바꿀 수 있는 소유자에서 등록한다.
+auto& prop = m_sceneGraph.Create<ModelActor>(
+    "prop/clinic_model", "streamed", m_models, "ENV_building_clinic",
+    [this](Point p) { return Project(p.x, p.y); });
+prop.SetLocalPosition({3.5f, 4.5f});
+prop.pixelsPerUnit = 18 * m_zoom;
+// OBJ는 애니메이션 없이 바인드 포즈로 표시된다.
+```
+
+각 NPC의 영구 외형 슬롯·색상 변형 저장, 리깅된 파트의 런타임 조립은 별도 기능이다.
+현재 GLB는 직업별 완성 조합이고 공유 리깅 라이브러리는 `.blend`이므로,
+임의 스켈레탈 파트를 조립하려면 동일 리그의 파트별 GLB 전달 자료가 추가로 필요하다.
+정적 OBJ 파트는 동일 위치·배율·yaw의 여러 ModelActor로 조립할 수 있다.
+
+## OpenGL 표시와 비용
+
+`ModelRenderer`는 모델당 모든 재질·파트를 하나의 정점/인덱스 버퍼로 병합한다.
+색·발광을 정점에 저장하고, 여러 스킨의 팔레트 범위를 정점 본 인덱스에 반영한다.
+같은 CPU 모델의 GPU 버퍼는 한 번 업로드한다. Actor마다 메시를 생성하거나 파일로 다시 저장하지 않는다.
+
+모델 내부의 앞뒤 면은 재사용하는 512×512 RGBA16F + depth 타깃에서 깊이 검사한다.
+곧바로 현재 월드 타깃에 합성하여 SceneGraph의 기존 도형·건물과 그리기 순서를 보존한다.
+HDR에서는 선형 색·발광을 그대로 후처리로 전달하고 UI 합성 순서를 유지한다.
+기본 캐릭터는 미술 단위당 `18 × zoom` 논리 픽셀이다. 공통 모델 API는 큰 소품 배율을
+자동 정규화하지 않으므로 타깃 밖으로 나가는 큰 모델은 배율을 낮추거나 타깃 구조를 확장해야 한다.
+
+현재 표시 모델당 **인덱스 드로 1회 + 합성 드로 1회**다. SceneGraph 순서를 지키기 위해
+앞서 쌓인 2D 배치를 먼저 제출하므로 추가 배치 분할도 발생할 수 있다.
+군중 전체를 한 번에 인스턴싱하는 최적화는 포함하지 않았다. 실제 FPS 향상이나 시각 품질은 측정하지 않았다.
+
+`FrameProfiler`의 glDrawElements 래퍼를 통해 새 드로도 FPS/월드 드로 수에 포함한다.
+이벤트 로그는 카탈로그 경로·등록 수, 최초 CPU 로드 시간·정점·삼각형·팔레트·클립 수,
+GPU 최초 업로드 바이트, 타깃 초기화와 실패 원인을 기록한다. 프레임 업로드 바이트에는
+새 모델 버퍼와 매 프레임 전송한 스킨 팔레트 바이트를 합산한다. 동일 에셋 실패를 매 프레임 출력하지 않는다.
+
+## 정적 검사와 사용자 확인 항목
+
+`tools/validate_model_assets.py`는 외부 패키지 없이 전달 GLB의 참조·키·클립 메타데이터,
+OBJ 면/법선/MTL·삼각형 수, 소스 등록·고정 의존성 해시를 검사한다.
+`--art 경로`로 다른 Art 폴더를 검사할 수 있다. C++ 로더 실행 테스트를 대신하지 않는다.
+
+사용자 빌드 후에는 한글 경로 로드, idle/walk/run/공격 전환, UI 정지,
+청크 경계 왕복, F2 초기화, 건물 앞뒤 정렬, HDR on/off, 창 크기 변경,
+에셋 누락 시 기존 표시 복귀와 드로 로그를 확인한다.
+
+파서는 고정 버전 [cgltf 1.15](https://github.com/jkuhlmann/cgltf/tree/v1.15)와
+[nlohmann/json 3.11.3](https://github.com/nlohmann/json/tree/v3.11.3)를 포함했다.
+스킨·보간은 [Khronos glTF 2.0 명세](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html)를 따른다.
+의존성 라이선스는 `SimpleGame/Dependencies/MODEL_LOADERS_LICENSES.md`에 기록했다.

@@ -3,6 +3,7 @@
 #include "FrameProfiler.h"
 #include "MeshCache.h"
 #include "Resources.h"
+#include "ModelRenderer.h"
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -388,6 +389,7 @@ Renderer::Renderer(int width, int height)
 
 Renderer::~Renderer()
 {
+    m_models.reset();
     m_font.reset();
     if (m_fallbackTexture)
     {
@@ -597,6 +599,35 @@ void Renderer::End()
 {
     BeginOverlay(); // Also resolve the world when the HUD is hidden.
     Flush();
+}
+
+bool Renderer::Model(const std::shared_ptr<const Models::Asset>& asset,
+                     const Models::Animator& animation,
+                     Point foot,
+                     float pixelsPerUnit,
+                     float yaw)
+{
+    if (!asset || !IsInitialized())
+    {
+        return false;
+    }
+    Flush();
+    FrameProfiler::Instance().SetStage(m_overlay ? FrameProfiler::Stage::Overlay
+                                                 : FrameProfiler::Stage::World);
+    if (!m_models)
+    {
+        m_models.reset(new ModelRenderer());
+    }
+    m_legacyStarted = false;
+    return m_models->Draw(asset,
+                          animation,
+                          foot,
+                          pixelsPerUnit,
+                          yaw,
+                          m_hdrScene,
+                          m_post.GetSettings().emissionGain,
+                          Width,
+                          Height);
 }
 
 void Renderer::Queue(Point a,

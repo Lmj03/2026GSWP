@@ -47,6 +47,7 @@ public:
     void SetStage(Stage stage);
     void AddUpdate(double milliseconds);
     void DrawArrays(GLenum mode, GLint first, GLsizei count);
+    void DrawElements(GLenum mode, GLsizei count, GLenum type, const void* indices);
     void DrawInstances(GLsizei vertices, GLsizei instances);
     Counters& Current();
     static double Milliseconds(Clock::time_point start);

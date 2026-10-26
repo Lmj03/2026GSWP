@@ -25,6 +25,7 @@ void LabelSpaces(std::string& text)
 
 bool CityScene::Load()
 {
+    m_models.Initialize();
     if (!m_text.Load(L"Data/Locale/ko.txt"))
     {
         std::cerr << "Data/Locale/ko.txt 한글 문구 파일을 불러올 수 없습니다.\n";

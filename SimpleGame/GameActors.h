@@ -1,6 +1,7 @@
 #pragma once
 #include "Actor.h"
 #include "GameplayTypes.h"
+#include "ModelVisual.h"
 
 class CityScene;
 
@@ -15,6 +16,8 @@ public:
 
 private:
     CityScene& m_scene;
+    ModelVisual m_visual;
+    bool m_modelAttacking = false;
 };
 
 class BuildingActor final : public Actor, public Building
@@ -41,6 +44,8 @@ public:
 
 private:
     CityScene& m_scene;
+    ModelVisual m_visual;
+    bool m_modelAttacking = false;
 };
 
 class EnemyActor final : public Actor, public Enemy
@@ -54,6 +59,8 @@ public:
 
 private:
     CityScene& m_scene;
+    ModelVisual m_visual;
+    bool m_modelAttacking = false;
 };
 
 class TerrainActor final : public Actor

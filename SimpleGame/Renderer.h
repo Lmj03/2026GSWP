@@ -7,6 +7,9 @@
 #include "PostProcessing.h"
 
 #include "RenderTypes.h"
+#include "ModelAsset.h"
+
+class ModelRenderer;
 
 // Ordered OpenGL triangles and UTF-8 text in logical 1280x800 screen space.
 class Renderer
@@ -24,6 +27,11 @@ public:
     void Begin(Color background);
     void BeginOverlay();
     void End();
+    bool Model(const std::shared_ptr<const Models::Asset>& asset,
+               const Models::Animator& animation,
+               Point foot,
+               float pixelsPerUnit,
+               float yaw);
 
     const PostProcessing::Settings& PostSettings() const
     {
@@ -96,6 +104,7 @@ private:
         m_viewHeight = static_cast<int>(Height);
     bool m_hdrScene = false, m_overlay = false;
     std::unique_ptr<FontCache> m_font;
+    std::unique_ptr<ModelRenderer> m_models;
     std::vector<Instance> m_instances;
     std::vector<Batch> m_batches;
     size_t m_gpuCapacity = 0;

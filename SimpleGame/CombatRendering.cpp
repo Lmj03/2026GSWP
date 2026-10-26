@@ -79,7 +79,7 @@ void CityScene::DrawWarning(Renderer& r, const Enemy& enemy) const
     }
 }
 
-void CityScene::DrawEnemy(Renderer& r, const Enemy& enemy) const
+void CityScene::DrawEnemy(Renderer& r, const Enemy& enemy, bool modelDrawn) const
 {
     if (!enemy.tutorial && enemy.health <= 0 && m_story.stage == StoryStage::Sentence)
     {
@@ -101,7 +101,10 @@ void CityScene::DrawEnemy(Renderer& r, const Enemy& enemy) const
     {
         return;
     }
-    DrawActor(r, local, 2, enemy.windup > 0 ? 0 : m_time * 4, false);
+    if (!modelDrawn)
+    {
+        DrawActor(r, local, 2, enemy.windup > 0 ? 0 : m_time * 4, false);
+    }
     const Color color = enemy.flash > 0 ? LevelWhite : LevelRed;
     r.Ellipse({p.x, p.y + 2}, 13 * m_zoom, 6 * m_zoom, color.Alpha(.4f));
     if (!m_interface || std::hypot(local.x - m_player.x, local.y - m_player.y) > 4.5f)

@@ -163,6 +163,7 @@
     <Text Include="..\docs\LEVEL_ONE.md" />
     <Text Include="..\docs\BASE_AND_EQUIPMENT.md" />
     <Text Include="..\docs\SCENE_GRAPH.md" />
+    <Text Include="..\docs\MODEL_ASSET_LOADING.md" />
     <Text Include="..\docs\ACT_ONE_IMPLEMENTATION.md" />
     <Text Include="..\docs\STORY_OUTLINE.md" />
     <Text Include="..\docs\PROFILING.md" />
@@ -184,6 +185,10 @@
     <ClInclude Include="RenderTypes.h" />
     <ClInclude Include="Resources.h" />
     <ClInclude Include="MeshCache.h" />
+    <ClInclude Include="ModelAsset.h" />
+    <ClInclude Include="ModelLibrary.h" />
+    <ClInclude Include="ModelRenderer.h" />
+    <ClInclude Include="ModelVisual.h" />
     <ClInclude Include="RuntimeFiles.h" />
     <ClInclude Include="Localization.h" />
     <ClInclude Include="stdafx.h" />
@@ -194,6 +199,12 @@
     <ClCompile Include="PostProcessing.cpp" />
     <ClCompile Include="FrameProfiler.cpp" />
     <ClCompile Include="MeshCache.cpp" />
+    <ClCompile Include="ModelAnimation.cpp" />
+    <ClCompile Include="ModelLoader.cpp" />
+    <ClCompile Include="CgltfImplementation.cpp" />
+    <ClCompile Include="ModelLibrary.cpp" />
+    <ClCompile Include="ModelRenderer.cpp" />
+    <ClCompile Include="ModelVisual.cpp" />
     <ClCompile Include="CityScene.cpp" />
     <ClCompile Include="Actor.cpp" />
     <ClCompile Include="SceneGraph.cpp" />
@@ -230,6 +241,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\SolidRect.fs" />
+    <None Include="Shaders\Model.vs" />
+    <None Include="Shaders\Model.fs" />
+    <None Include="Shaders\ModelComposite.vs" />
+    <None Include="Shaders\ModelComposite.fs" />
+    <None Include="Data\Rendering\models.cfg" />
     <None Include="Shaders\SolidRect.vs" />
     <None Include="Shaders\PostProcess.vs" />
     <None Include="Shaders\BloomExtract.fs" />

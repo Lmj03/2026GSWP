@@ -1,5 +1,8 @@
 # Actor와 SceneGraph
 
+GLB/OBJ 모델의 공통 로딩·스키닝·Actor별 재생은 [MODEL_ASSET_LOADING.md](MODEL_ASSET_LOADING.md)를 따른다.
+기존 게임 Actor는 `ModelVisual`을 가지며, 추가 소품은 `SceneGraph::Create<ModelActor>()`로 등록할 수 있다.
+
 화면에 배치하는 논리 객체는 `Actor`를 상속하고 `SceneGraph::Create<T>()`로 등록한다. `SceneGraph`가 `unique_ptr`로 수명을 소유하며, 프레임마다 `Update()`와 `Draw()`를 호출한다. OpenGL 버퍼·셰이더·HDR 후처리는 기존 `Renderer`가 담당한다. 타일 청크, 날씨, HUD 내부의 삼각형·빗방울·글리프는 각 Actor가 출력하는 렌더링 요소다.
 
 ## 현재 장면

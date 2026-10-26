@@ -49,7 +49,7 @@ void CityScene::DrawPlayer(Renderer& r, Point position) const
     r.Ellipse(at(0, 1), 5 * s, 2 * s, cyan.Alpha(.2f));
 }
 
-void CityScene::DrawCitizen(Renderer& r, const Citizen& npc, float phase) const
+void CityScene::DrawCitizen(Renderer& r, const Citizen& npc, float phase, bool modelDrawn) const
 {
     if (!npc.active)
     {
@@ -75,17 +75,21 @@ void CityScene::DrawCitizen(Renderer& r, const Citizen& npc, float phase) const
         npc.activity == NpcActivity::Delivering || npc.activity == NpcActivity::Fleeing ||
         npc.activity == NpcActivity::Attacking || npc.activity == NpcActivity::Extorting ||
         npc.activity == NpcActivity::Patrolling || npc.activity == NpcActivity::Travelling;
-    DrawActor(r, npc.position, npc.role, moving ? m_time * 3 + phase : 0, npc.memory.helped);
-    if (npc.occupation == Occupation::Worker)
+    if (!modelDrawn)
+    {
+        DrawActor(r, npc.position, npc.role, moving ? m_time * 3 + phase : 0, npc.memory.helped);
+    }
+    if (!modelDrawn && npc.occupation == Occupation::Worker)
     {
         r.Rect(p.x - 6 * s, p.y - 41 * s, 12 * s, 4 * s, Color(.95f, .63f, .2f));
     }
-    if (npc.occupation == Occupation::Medic)
+    if (!modelDrawn && npc.occupation == Occupation::Medic)
     {
         r.Rect(p.x - 2 * s, p.y - 26 * s, 4 * s, 10 * s, color);
         r.Rect(p.x - 5 * s, p.y - 23 * s, 10 * s, 4 * s, color);
     }
-    if (npc.occupation == Occupation::Merchant || npc.activity == NpcActivity::Delivering)
+    if (!modelDrawn &&
+        (npc.occupation == Occupation::Merchant || npc.activity == NpcActivity::Delivering))
     {
         r.Rect(p.x + 8 * s, p.y - 16 * s, 6 * s, 8 * s, Color(.42f, .28f, .15f));
     }

@@ -47,6 +47,7 @@ public:
     }
 
 private:
+    ModelLibrary m_models;
     TelemetryClient m_telemetry;
     bool m_monitorInitialized = false;
     bool m_monitorEnabled = false;
@@ -140,7 +141,10 @@ private:
     void RememberNpc(const Citizen& npc);
     void UpdateNpc(Citizen& npc, float dt, float phase);
     bool AttackCitizens(bool knife, std::int64_t damage, float maximumDistance);
-    void DrawCitizen(Renderer& renderer, const Citizen& npc, float phase) const;
+    void DrawCitizen(Renderer& renderer,
+                     const Citizen& npc,
+                     float phase,
+                     bool modelDrawn = false) const;
     void DrawPlayer(Renderer& renderer, Point position) const;
     void DrawStoryNode(Renderer& renderer, const std::string& id, Point position) const;
     void DrawStoryHud(Renderer& renderer) const;
@@ -210,7 +214,7 @@ private:
     bool LevelLocal(Point world, Point& local) const;
     bool ClearReach(Point from, Point to) const;
     bool LevelObjective(Point& local) const;
-    void DrawEnemy(Renderer& renderer, const Enemy& enemy) const;
+    void DrawEnemy(Renderer& renderer, const Enemy& enemy, bool modelDrawn = false) const;
     void DrawAttack(Renderer& renderer) const;
     void DrawLevelHud(Renderer& renderer) const;
     void DrawLevelMap(Renderer& renderer,

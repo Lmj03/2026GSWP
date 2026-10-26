@@ -117,6 +117,13 @@ void FrameProfiler::DrawArrays(GLenum mode, GLint first, GLsizei count)
     m_current.vertices += count;
 }
 
+void FrameProfiler::DrawElements(GLenum mode, GLsizei count, GLenum type, const void* indices)
+{
+    glDrawElements(mode, count, type, indices);
+    ++m_current.draws[static_cast<int>(m_stage)];
+    m_current.vertices += count;
+}
+
 void FrameProfiler::DrawInstances(GLsizei vertices, GLsizei instances)
 {
     glDrawArraysInstanced(GL_TRIANGLES, 0, vertices, instances);
