@@ -40,6 +40,7 @@ void CityScene::AddBuilding(Building building)
     {
         static_cast<Building&>(*actor) = std::move(building);
         actor->depthOffset = actor->w + actor->d;
+        actor->RefreshModel();
     }
     m_buildings.Add(*actor);
     m_nextStreamActors.insert(id);

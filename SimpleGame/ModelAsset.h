@@ -15,6 +15,13 @@ Matrix Multiply(const Matrix& a, const Matrix& b);
 Matrix Transform(const Vector& translation, const Vector& rotation, const Vector& scale);
 Vector RotateBlend(Vector a, Vector b, float factor);
 
+struct DrawStyle
+{
+    Matrix transform = Identity();
+    float opacity = 1;
+    int targetSize = 512;
+};
+
 struct Pose
 {
     Vector translation = {{0, 0, 0, 0}};
@@ -92,6 +99,9 @@ struct Asset
     std::vector<size_t> hierarchy;
     std::vector<Joint> palette;
     std::vector<Clip> clips;
+    // Raw geometry bounds; OBJ import has already converted these to Y-up.
+    std::array<float, 3> minimum = {};
+    std::array<float, 3> maximum = {};
     const Clip* FindClip(const std::string& name) const;
 };
 

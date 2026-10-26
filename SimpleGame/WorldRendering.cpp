@@ -26,6 +26,42 @@ int Mod(int n, int d)
     return (n % d + d) % d;
 }
 
+bool BuildingStyle(const Models::Asset& asset,
+                   const Building& building,
+                   float zoom,
+                   float opacity,
+                   Models::DrawStyle& style)
+{
+    const float dimensions[] = {building.w, building.height / 32.f, building.d};
+    style.transform = Models::Identity();
+    for (size_t axis = 0; axis < 3; ++axis)
+    {
+        const float extent = asset.maximum[axis] - asset.minimum[axis];
+        if (!std::isfinite(extent) || extent <= 1e-5f || !std::isfinite(dimensions[axis]) ||
+            dimensions[axis] <= 0)
+        {
+            return false;
+        }
+        const float center =
+            axis == 1 ? asset.minimum[axis] : (asset.minimum[axis] + asset.maximum[axis]) * .5f;
+        style.transform[axis * 5] = dimensions[axis] / extent;
+        style.transform[12 + axis] = -center * style.transform[axis * 5];
+    }
+    style.opacity = opacity;
+    // Include the entire fitted bounding box and filtering margin around the foot anchor.
+    const float halfWidth = (building.w + building.d) * 16 * zoom;
+    const float groundDepth = (building.w + building.d) * 8 * zoom;
+    const float required = std::max({(halfWidth + 4) * 2,
+                                     (building.height * zoom + groundDepth + 4) / .75f,
+                                     (groundDepth + 4) / .25f});
+    style.targetSize = 512;
+    while (style.targetSize < required && style.targetSize < 2048)
+    {
+        style.targetSize *= 2;
+    }
+    return std::isfinite(required) && required <= style.targetSize;
+}
+
 }
 
 void CityScene::DrawTerrain(Renderer& r, Point origin) const
@@ -120,7 +156,7 @@ void CityScene::DrawReflection(Renderer& r, const Building& b) const
     }
 }
 
-void CityScene::DrawBuilding(Renderer& r, const Building& b) const
+void CityScene::DrawBuilding(Renderer& r, const Building& b, const ModelVisual* model) const
 {
     const Point a = Project(b.x, b.y), right = Project(b.x + b.w, b.y);
     const Point front = Project(b.x + b.w, b.y + b.d), left = Project(b.x, b.y + b.d);
@@ -138,88 +174,102 @@ void CityScene::DrawBuilding(Renderer& r, const Building& b) const
     const Color neon = Accent(b.palette).Alpha(opacity).Emissive(3.f);
     const Point at(a.x, a.y - h), bt(right.x, right.y - h);
     const Point ct(front.x, front.y - h), dt(left.x, left.y - h);
-    const Color roof(.115f, .17f, .23f, opacity);
-    const Color wallLeft(.066f, .087f, .145f, opacity), wallRight(.045f, .066f, .108f, opacity);
-
-    r.Quad(right, front, ct, bt, wallRight);
-    r.Quad(front, left, dt, ct, wallLeft);
-    r.Quad(at, bt, ct, dt, roof);
-    r.Line(at, bt, 2 * m_zoom, neon.Shade(.55f));
-    r.Line(at, dt, 2 * m_zoom, Color(.32f, .42f, .48f, opacity));
-    r.Line(bt, ct, 2 * m_zoom, neon);
-    r.Line(dt, ct, 2 * m_zoom, neon);
-    r.Line(ct, front, 1.5f * m_zoom, neon.Shade(.5f));
-
-    // Windows lie on each isometric facade.
-    for (int row = 0; row < static_cast<int>((b.height - 35) / 25); ++row)
+    bool modelDrawn = false;
+    if (model && model->Asset())
     {
-        const float z = 32.f + row * 25;
-        for (int col = 0; col < static_cast<int>(b.w * 2) - 1; ++col)
+        Models::DrawStyle style;
+        if (BuildingStyle(*model->Asset(), b, m_zoom, opacity, style))
         {
-            const float x = b.x + .35f + col * .5f;
-            const bool lit = Mod(col * 7 + row * 3 + b.palette, 5) != 0;
-            const Color light = lit ? neon.Alpha(opacity * .58f) : Color(.12f, .17f, .23f, opacity);
-            r.Quad(Project(x, b.y + b.d, z),
-                   Project(x + .24f, b.y + b.d, z),
-                   Project(x + .24f, b.y + b.d, z + 11),
-                   Project(x, b.y + b.d, z + 11),
-                   light);
-        }
-        for (int col = 0; col < static_cast<int>(b.d * 2) - 1; ++col)
-        {
-            const float y = b.y + .35f + col * .5f;
-            const Color light = Mod(col + row, 3) == 0 ? Amber.Alpha(opacity * .48f)
-                                                       : Color(.09f, .21f, .28f, opacity);
-            r.Quad(Project(b.x + b.w, y, z),
-                   Project(b.x + b.w, y + .24f, z),
-                   Project(b.x + b.w, y + .24f, z + 11),
-                   Project(b.x + b.w, y, z + 11),
-                   light);
+            modelDrawn =
+                model->Draw(r, Project(b.x + b.w * .5f, b.y + b.d * .5f), 32 * m_zoom, style);
         }
     }
-    // Storefront shutter, awning and rooftop utility unit.
-    r.Quad(Project(b.x + .35f, b.y + b.d, 0),
-           Project(b.x + 1.05f, b.y + b.d, 0),
-           Project(b.x + 1.05f, b.y + b.d, 26),
-           Project(b.x + .35f, b.y + b.d, 26),
-           Color(.023f, .033f, .053f, opacity));
-    for (int i = 0; i < 5; ++i)
+    if (!modelDrawn)
     {
-        r.Line(Project(b.x + .36f, b.y + b.d, 4.f + i * 4),
-               Project(b.x + 1.04f, b.y + b.d, 4.f + i * 4),
+        const Color roof(.115f, .17f, .23f, opacity);
+        const Color wallLeft(.066f, .087f, .145f, opacity), wallRight(.045f, .066f, .108f, opacity);
+
+        r.Quad(right, front, ct, bt, wallRight);
+        r.Quad(front, left, dt, ct, wallLeft);
+        r.Quad(at, bt, ct, dt, roof);
+        r.Line(at, bt, 2 * m_zoom, neon.Shade(.55f));
+        r.Line(at, dt, 2 * m_zoom, Color(.32f, .42f, .48f, opacity));
+        r.Line(bt, ct, 2 * m_zoom, neon);
+        r.Line(dt, ct, 2 * m_zoom, neon);
+        r.Line(ct, front, 1.5f * m_zoom, neon.Shade(.5f));
+
+        // Windows lie on each isometric facade.
+        for (int row = 0; row < static_cast<int>((b.height - 35) / 25); ++row)
+        {
+            const float z = 32.f + row * 25;
+            for (int col = 0; col < static_cast<int>(b.w * 2) - 1; ++col)
+            {
+                const float x = b.x + .35f + col * .5f;
+                const bool lit = Mod(col * 7 + row * 3 + b.palette, 5) != 0;
+                const Color light =
+                    lit ? neon.Alpha(opacity * .58f) : Color(.12f, .17f, .23f, opacity);
+                r.Quad(Project(x, b.y + b.d, z),
+                       Project(x + .24f, b.y + b.d, z),
+                       Project(x + .24f, b.y + b.d, z + 11),
+                       Project(x, b.y + b.d, z + 11),
+                       light);
+            }
+            for (int col = 0; col < static_cast<int>(b.d * 2) - 1; ++col)
+            {
+                const float y = b.y + .35f + col * .5f;
+                const Color light = Mod(col + row, 3) == 0 ? Amber.Alpha(opacity * .48f)
+                                                           : Color(.09f, .21f, .28f, opacity);
+                r.Quad(Project(b.x + b.w, y, z),
+                       Project(b.x + b.w, y + .24f, z),
+                       Project(b.x + b.w, y + .24f, z + 11),
+                       Project(b.x + b.w, y, z + 11),
+                       light);
+            }
+        }
+        // Storefront shutter, awning and rooftop utility unit.
+        r.Quad(Project(b.x + .35f, b.y + b.d, 0),
+               Project(b.x + 1.05f, b.y + b.d, 0),
+               Project(b.x + 1.05f, b.y + b.d, 26),
+               Project(b.x + .35f, b.y + b.d, 26),
+               Color(.023f, .033f, .053f, opacity));
+        for (int i = 0; i < 5; ++i)
+        {
+            r.Line(Project(b.x + .36f, b.y + b.d, 4.f + i * 4),
+                   Project(b.x + 1.04f, b.y + b.d, 4.f + i * 4),
+                   1,
+                   Muted.Alpha(opacity * .35f));
+        }
+        r.Quad(Project(b.x, b.y + b.d, 31),
+               Project(b.x + b.w, b.y + b.d, 31),
+               Project(b.x + b.w, b.y + b.d + .3f, 25),
+               Project(b.x, b.y + b.d + .3f, 25),
+               neon.Shade(.34f));
+        r.Line(Project(b.x, b.y + b.d + .3f, 25),
+               Project(b.x + b.w, b.y + b.d + .3f, 25),
+               2 * m_zoom,
+               neon);
+        const Point unit = Project(b.x + b.w * .45f, b.y + b.d * .4f, b.height + 3);
+        r.Quad({unit.x - 16 * m_zoom, unit.y},
+               {unit.x, unit.y - 8 * m_zoom},
+               {unit.x + 23 * m_zoom, unit.y + 3 * m_zoom},
+               {unit.x + 7 * m_zoom, unit.y + 11 * m_zoom},
+               Color(.18f, .24f, .29f, opacity));
+        for (int i = 0; i < 4; ++i)
+        {
+            r.Line({unit.x - 9 * m_zoom + i * 5 * m_zoom, unit.y},
+                   {unit.x + 4 * m_zoom + i * 5 * m_zoom, unit.y + 6 * m_zoom},
+                   1,
+                   Color(.04f, .07f, .1f, opacity));
+        }
+        const Point antenna = Project(b.x + b.w * .75f, b.y + .45f, b.height);
+        r.Line(antenna, {antenna.x, antenna.y - 26 * m_zoom}, 2, Muted.Alpha(opacity));
+        r.Line({antenna.x - 9 * m_zoom, antenna.y - 18 * m_zoom},
+               {antenna.x + 9 * m_zoom, antenna.y - 18 * m_zoom},
                1,
-               Muted.Alpha(opacity * .35f));
+               Muted.Alpha(opacity));
+        r.Glow({antenna.x, antenna.y - 27 * m_zoom}, 9, 9, Pink.Alpha(opacity));
+        r.Rect(antenna.x - 1, antenna.y - 28 * m_zoom, 2, 2, Pink.Alpha(opacity).Emissive(3.f));
     }
-    r.Quad(Project(b.x, b.y + b.d, 31),
-           Project(b.x + b.w, b.y + b.d, 31),
-           Project(b.x + b.w, b.y + b.d + .3f, 25),
-           Project(b.x, b.y + b.d + .3f, 25),
-           neon.Shade(.34f));
-    r.Line(Project(b.x, b.y + b.d + .3f, 25),
-           Project(b.x + b.w, b.y + b.d + .3f, 25),
-           2 * m_zoom,
-           neon);
-    const Point unit = Project(b.x + b.w * .45f, b.y + b.d * .4f, b.height + 3);
-    r.Quad({unit.x - 16 * m_zoom, unit.y},
-           {unit.x, unit.y - 8 * m_zoom},
-           {unit.x + 23 * m_zoom, unit.y + 3 * m_zoom},
-           {unit.x + 7 * m_zoom, unit.y + 11 * m_zoom},
-           Color(.18f, .24f, .29f, opacity));
-    for (int i = 0; i < 4; ++i)
-    {
-        r.Line({unit.x - 9 * m_zoom + i * 5 * m_zoom, unit.y},
-               {unit.x + 4 * m_zoom + i * 5 * m_zoom, unit.y + 6 * m_zoom},
-               1,
-               Color(.04f, .07f, .1f, opacity));
-    }
-    const Point antenna = Project(b.x + b.w * .75f, b.y + .45f, b.height);
-    r.Line(antenna, {antenna.x, antenna.y - 26 * m_zoom}, 2, Muted.Alpha(opacity));
-    r.Line({antenna.x - 9 * m_zoom, antenna.y - 18 * m_zoom},
-           {antenna.x + 9 * m_zoom, antenna.y - 18 * m_zoom},
-           1,
-           Muted.Alpha(opacity));
-    r.Glow({antenna.x, antenna.y - 27 * m_zoom}, 9, 9, Pink.Alpha(opacity));
-    r.Rect(antenna.x - 1, antenna.y - 28 * m_zoom, 2, 2, Pink.Alpha(opacity).Emissive(3.f));
 
     float scale = (b.id == "arcadia" ? 1.4f : .95f) * m_zoom;
     const float maxSign = std::max(95.f, (b.w + b.d) * 24.f) * m_zoom;

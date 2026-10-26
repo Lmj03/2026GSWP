@@ -10,8 +10,6 @@
 
 namespace
 {
-constexpr GLsizei TargetSize = 512;
-
 GLuint Program(const wchar_t* vertex, const wchar_t* fragment)
 {
     std::string sources[2];
@@ -64,10 +62,18 @@ struct ModelRenderer::State
         GLsizei count = 0;
     };
 
+    struct Target
+    {
+        GLuint framebuffer = 0, color = 0, depth = 0;
+        bool ready = false;
+    };
+
     std::map<const Models::Asset*, Mesh> meshes;
-    GLuint program = 0, compose = 0, framebuffer = 0, color = 0, depth = 0, emptyVao = 0;
+    std::map<int, Target> targets;
+    GLuint program = 0, compose = 0, emptyVao = 0;
     GLint palette = -1, scale = -1, yaw = -1, hdr = -1, emission = -1;
-    GLint foot = -1, screen = -1;
+    GLint modelTransform = -1, targetSize = -1;
+    GLint foot = -1, screen = -1, compositeSize = -1, opacity = -1;
     bool attempted = false, ready = false;
 
     ~State()
@@ -79,10 +85,13 @@ struct ModelRenderer::State
             glDeleteBuffers(1, &mesh.indices);
             glDeleteVertexArrays(1, &mesh.vao);
         }
+        for (const auto& pair : targets)
+        {
+            glDeleteRenderbuffers(1, &pair.second.depth);
+            glDeleteTextures(1, &pair.second.color);
+            glDeleteFramebuffers(1, &pair.second.framebuffer);
+        }
         glDeleteVertexArrays(1, &emptyVao);
-        glDeleteRenderbuffers(1, &depth);
-        glDeleteTextures(1, &color);
-        glDeleteFramebuffers(1, &framebuffer);
         glDeleteProgram(program);
         glDeleteProgram(compose);
     }
@@ -106,36 +115,61 @@ struct ModelRenderer::State
         yaw = glGetUniformLocation(program, "u_Yaw");
         hdr = glGetUniformLocation(program, "u_HDR");
         emission = glGetUniformLocation(program, "u_EmissionGain");
+        modelTransform = glGetUniformLocation(program, "u_ModelTransform");
+        targetSize = glGetUniformLocation(program, "u_TargetSize");
         foot = glGetUniformLocation(compose, "u_Foot");
         screen = glGetUniformLocation(compose, "u_Screen");
+        compositeSize = glGetUniformLocation(compose, "u_TargetSize");
+        opacity = glGetUniformLocation(compose, "u_Opacity");
         glGenVertexArrays(1, &emptyVao);
-        glGenFramebuffers(1, &framebuffer);
-        glGenTextures(1, &color);
+        ready = emptyVao != 0;
+        FrameProfiler::Instance().Event(std::string("model_gpu palette_limit=48 ready=") +
+                                        (ready ? "1" : "0"));
+        return ready;
+    }
+
+    const Target* GetTarget(int size)
+    {
+        const auto found = targets.find(size);
+        if (found != targets.end())
+        {
+            return found->second.ready ? &found->second : nullptr;
+        }
+        auto& target = targets[size];
+        GLint maxTexture = 0;
+        glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTexture);
+        if (size > maxTexture)
+        {
+            FrameProfiler::Instance().Event("model_target unsupported_size=" +
+                                            std::to_string(size));
+            return nullptr;
+        }
+        glGenFramebuffers(1, &target.framebuffer);
+        glGenTextures(1, &target.color);
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, color);
-        glTexImage2D(GL_TEXTURE_2D,
-                     0,
-                     GL_RGBA16F,
-                     TargetSize,
-                     TargetSize,
-                     0,
-                     GL_RGBA,
-                     GL_FLOAT,
-                     nullptr);
+        glBindTexture(GL_TEXTURE_2D, target.color);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, size, size, 0, GL_RGBA, GL_FLOAT, nullptr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glGenRenderbuffers(1, &depth);
-        glBindRenderbuffer(GL_RENDERBUFFER, depth);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, TargetSize, TargetSize);
-        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color, 0);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth);
-        ready = glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
-        FrameProfiler::Instance().Event(
-            std::string("model_gpu target=512x512 palette_limit=48 ready=") + (ready ? "1" : "0"));
-        return ready;
+        glGenRenderbuffers(1, &target.depth);
+        glBindRenderbuffer(GL_RENDERBUFFER, target.depth);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, size, size);
+        glBindFramebuffer(GL_FRAMEBUFFER, target.framebuffer);
+        glFramebufferTexture2D(GL_FRAMEBUFFER,
+                               GL_COLOR_ATTACHMENT0,
+                               GL_TEXTURE_2D,
+                               target.color,
+                               0);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER,
+                                  GL_DEPTH_ATTACHMENT,
+                                  GL_RENDERBUFFER,
+                                  target.depth);
+        target.ready = glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+        FrameProfiler::Instance().Event("model_target size=" + std::to_string(size) +
+                                        " ready=" + (target.ready ? "1" : "0"));
+        return target.ready ? &target : nullptr;
     }
 
     const Mesh& Upload(const std::shared_ptr<const Models::Asset>& asset)
@@ -213,6 +247,7 @@ bool ModelRenderer::Draw(const std::shared_ptr<const Models::Asset>& asset,
                          Point foot,
                          float pixelsPerUnit,
                          float yaw,
+                         const Models::DrawStyle& style,
                          bool hdr,
                          float emissionGain,
                          float width,
@@ -221,14 +256,25 @@ bool ModelRenderer::Draw(const std::shared_ptr<const Models::Asset>& asset,
     if (!asset || animation.Palette().empty() ||
         animation.Palette().size() != asset->palette.size() ||
         animation.Palette().size() > Models::MaxPalette || !std::isfinite(pixelsPerUnit) ||
-        pixelsPerUnit <= 0 || !std::isfinite(yaw))
+        pixelsPerUnit <= 0 || !std::isfinite(yaw) || !std::isfinite(style.opacity) ||
+        style.opacity < 0 || style.opacity > 1 ||
+        (style.targetSize != 512 && style.targetSize != 1024 && style.targetSize != 2048))
     {
         return false;
+    }
+    for (float value : style.transform)
+    {
+        if (!std::isfinite(value))
+        {
+            return false;
+        }
     }
     GLint target = 0, viewport[4] = {};
     glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &target);
     glGetIntegerv(GL_VIEWPORT, viewport);
-    if (!m_state->Initialize())
+    const State::Target* modelTarget =
+        m_state->Initialize() ? m_state->GetTarget(style.targetSize) : nullptr;
+    if (!modelTarget)
     {
         glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(target));
         glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
@@ -237,11 +283,11 @@ bool ModelRenderer::Draw(const std::shared_ptr<const Models::Asset>& asset,
     const auto start = FrameProfiler::Clock::now();
     const auto& mesh = m_state->Upload(asset);
     auto& profiler = FrameProfiler::Instance();
-    // Reuse one color/depth target; resolve immediately to preserve SceneGraph painter order.
-    glBindFramebuffer(GL_FRAMEBUFFER, m_state->framebuffer);
+    // Cache bounded target sizes; resolve immediately to preserve SceneGraph painter order.
+    glBindFramebuffer(GL_FRAMEBUFFER, modelTarget->framebuffer);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, 0);
-    glViewport(0, 0, TargetSize, TargetSize);
+    glViewport(0, 0, style.targetSize, style.targetSize);
     glDisable(GL_BLEND);
     glDisable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
@@ -258,6 +304,9 @@ bool ModelRenderer::Draw(const std::shared_ptr<const Models::Asset>& asset,
     profiler.Current().uploadBytes += animation.Palette().size() * sizeof(Models::Matrix);
     glUniform1f(m_state->scale, pixelsPerUnit);
     glUniform1f(m_state->yaw, yaw);
+    glUniformMatrix4fv(m_state->modelTransform, 1, GL_FALSE, style.transform.data());
+    glUniform1f(m_state->targetSize, static_cast<float>(style.targetSize));
+    profiler.Current().uploadBytes += sizeof(Models::Matrix);
     glUniform1i(m_state->hdr, hdr ? 1 : 0);
     glUniform1f(m_state->emission, emissionGain);
     glBindVertexArray(mesh.vao);
@@ -270,8 +319,10 @@ bool ModelRenderer::Draw(const std::shared_ptr<const Models::Asset>& asset,
     glUseProgram(m_state->compose);
     glUniform2f(m_state->foot, foot.x, foot.y);
     glUniform2f(m_state->screen, width, height);
+    glUniform1f(m_state->compositeSize, static_cast<float>(style.targetSize));
+    glUniform1f(m_state->opacity, style.opacity);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, m_state->color);
+    glBindTexture(GL_TEXTURE_2D, modelTarget->color);
     ++profiler.Current().textureBinds;
     glBindVertexArray(m_state->emptyVao);
     profiler.DrawArrays(GL_TRIANGLES, 0, 3);

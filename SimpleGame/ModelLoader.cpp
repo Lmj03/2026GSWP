@@ -83,6 +83,20 @@ void CopyFinite(const float* source, float* target, size_t count)
         target[i] = source[i];
     }
 }
+
+void MeasureBounds(Asset& asset)
+{
+    std::copy_n(asset.vertices.front().position, 3, asset.minimum.data());
+    asset.maximum = asset.minimum;
+    for (const auto& vertex : asset.vertices)
+    {
+        for (size_t i = 0; i < 3; ++i)
+        {
+            asset.minimum[i] = std::min(asset.minimum[i], vertex.position[i]);
+            asset.maximum[i] = std::max(asset.maximum[i], vertex.position[i]);
+        }
+    }
+}
 }
 
 bool LoadGlb(const std::wstring& file, Asset& output, std::string& error)
@@ -377,6 +391,7 @@ bool LoadGlb(const std::wstring& file, Asset& output, std::string& error)
             asset.clips.push_back(std::move(clip));
         }
         Require(!asset.indices.empty(), "model has no visible triangles");
+        MeasureBounds(asset);
         output = std::move(asset);
         error.clear();
         return true;
@@ -521,6 +536,7 @@ bool LoadObj(const std::wstring& file, Asset& output, std::string& error)
             }
         }
         Require(!asset.indices.empty(), "OBJ has no triangles");
+        MeasureBounds(asset);
         output = std::move(asset);
         error.clear();
         return true;

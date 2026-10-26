@@ -263,7 +263,9 @@ private:
     bool CanStand(float x, float y, float radius = .18f) const;
     void Move(Point& position, float x, float y, float radius = .18f);
     int NearbyCitizen() const;
-    void DrawBuilding(Renderer& renderer, const Building& building) const;
+    void DrawBuilding(Renderer& renderer,
+                      const Building& building,
+                      const ModelVisual* model = nullptr) const;
     void DrawActor(Renderer& renderer, Point position, int role, float phase, bool friendly) const;
     void DrawWeather(Renderer& renderer) const;
     void DrawInterface(Renderer& renderer) const;

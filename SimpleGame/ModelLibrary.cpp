@@ -122,6 +122,7 @@ bool ModelLibrary::Initialize(const std::wstring& root)
     m_cache.clear();
     m_parts.clear();
     m_failed.clear();
+    m_buildingVariants.clear();
     std::string config;
     if (ReadResource(L"Data/Rendering/models.cfg", config))
     {
@@ -202,8 +203,14 @@ bool ModelLibrary::Initialize(const std::wstring& root)
             }
             for (const auto& item : catalog.at("environment"))
             {
-                add(item);
+                const auto id = add(item);
+                if (id.compare(0, 13, "ENV_building_") == 0 && id != "ENV_building_arcadia" &&
+                    id != "ENV_building_tower")
+                {
+                    m_buildingVariants.push_back(id);
+                }
             }
+            std::sort(m_buildingVariants.begin(), m_buildingVariants.end());
         }
         m_enabled = !m_entries.empty();
         FrameProfiler::Instance().Event("model_catalog root=" + PathUtf8(m_root) +
@@ -214,6 +221,7 @@ bool ModelLibrary::Initialize(const std::wstring& root)
     {
         m_entries.clear();
         m_parts.clear();
+        m_buildingVariants.clear();
         Failure("catalog", error.what());
         return false;
     }
@@ -324,6 +332,31 @@ std::string ModelLibrary::PartId(const std::string& slot, int index) const
     }
     const auto part = found->second.find(index);
     return part == found->second.end() ? std::string() : part->second;
+}
+
+std::string ModelLibrary::BuildingId(const std::string& districtId, int palette) const
+{
+    if (!m_enabled)
+    {
+        return {};
+    }
+    const std::string authored = "ENV_building_" + districtId;
+    if (m_entries.count(authored))
+    {
+        return authored;
+    }
+    if (districtId.compare(0, 10, "generated/") != 0 || m_buildingVariants.empty())
+    {
+        return {};
+    }
+    // Fixed FNV-1a; std::hash is not a persistent coordinate/appearance contract.
+    std::uint64_t hash = 14695981039346656037ULL;
+    for (unsigned char byte : districtId)
+    {
+        hash = (hash ^ byte) * 1099511628211ULL;
+    }
+    hash = (hash ^ static_cast<std::uint32_t>(palette)) * 1099511628211ULL;
+    return m_buildingVariants[static_cast<size_t>(hash % m_buildingVariants.size())];
 }
 
 const std::wstring& ModelLibrary::Root() const

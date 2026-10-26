@@ -12,6 +12,7 @@ public:
     bool Initialize(const std::wstring& root = {});
     std::shared_ptr<const Models::Asset> Get(const std::string& id);
     std::string PartId(const std::string& slot, int index) const;
+    std::string BuildingId(const std::string& districtId, int palette) const;
     const std::wstring& Root() const;
     bool Enabled() const;
 
@@ -29,4 +30,5 @@ private:
     std::map<std::string, std::shared_ptr<const Models::Asset>> m_cache;
     std::map<std::string, std::map<int, std::string>> m_parts;
     std::set<std::string> m_failed;
+    std::vector<std::string> m_buildingVariants;
 };

@@ -27,9 +27,11 @@ public:
     Point LocalPosition() const override;
     void SetLocalPosition(Point position) override;
     void Draw(Renderer& renderer) const override;
+    void RefreshModel();
 
 private:
     CityScene& m_scene;
+    ModelVisual m_visual;
 };
 
 class CitizenActor final : public Actor, public Citizen

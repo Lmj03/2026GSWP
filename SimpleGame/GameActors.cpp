@@ -83,6 +83,12 @@ BuildingActor::BuildingActor(const std::string& id, CityScene& scene, const Buil
 {
     renderEnabled = true;
     depthOffset = w + d;
+    RefreshModel();
+}
+
+void BuildingActor::RefreshModel()
+{
+    m_visual.Bind(m_scene.m_models, m_scene.m_models.BuildingId(Building::id, palette));
 }
 
 Point BuildingActor::LocalPosition() const
@@ -102,7 +108,7 @@ void BuildingActor::Draw(Renderer& r) const
     const Point p = WorldPosition();
     data.x = p.x;
     data.y = p.y;
-    m_scene.DrawBuilding(r, data);
+    m_scene.DrawBuilding(r, data, &m_visual);
 }
 
 CitizenActor::CitizenActor(const std::string& id, CityScene& scene, const Citizen& data)

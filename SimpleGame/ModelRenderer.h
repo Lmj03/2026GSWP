@@ -14,6 +14,7 @@ public:
               Point foot,
               float pixelsPerUnit,
               float yaw,
+              const Models::DrawStyle& style,
               bool hdr,
               float emissionGain,
               float width,

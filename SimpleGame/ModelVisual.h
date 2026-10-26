@@ -9,7 +9,10 @@ class ModelVisual
 public:
     bool Bind(ModelLibrary& library, const std::string& id);
     void Update(const std::string& clip, float dt, float speed = 1, bool restart = false);
-    bool Draw(Renderer& renderer, Point screenFoot, float pixelsPerUnit) const;
+    bool Draw(Renderer& renderer,
+              Point screenFoot,
+              float pixelsPerUnit,
+              const Models::DrawStyle& style = Models::DrawStyle()) const;
     Models::Animator& Animation();
     const Models::Asset* Asset() const;
     float yaw = 0;

@@ -32,9 +32,12 @@ void ModelVisual::Update(const std::string& clip, float dt, float speed, bool re
     }
 }
 
-bool ModelVisual::Draw(Renderer& renderer, Point screenFoot, float pixelsPerUnit) const
+bool ModelVisual::Draw(Renderer& renderer,
+                       Point screenFoot,
+                       float pixelsPerUnit,
+                       const Models::DrawStyle& style) const
 {
-    return renderer.Model(m_asset, m_animation, screenFoot, pixelsPerUnit, yaw);
+    return renderer.Model(m_asset, m_animation, screenFoot, pixelsPerUnit, yaw, style);
 }
 
 Models::Animator& ModelVisual::Animation()

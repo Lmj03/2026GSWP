@@ -605,7 +605,8 @@ bool Renderer::Model(const std::shared_ptr<const Models::Asset>& asset,
                      const Models::Animator& animation,
                      Point foot,
                      float pixelsPerUnit,
-                     float yaw)
+                     float yaw,
+                     const Models::DrawStyle& style)
 {
     if (!asset || !IsInitialized())
     {
@@ -624,6 +625,7 @@ bool Renderer::Model(const std::shared_ptr<const Models::Asset>& asset,
                           foot,
                           pixelsPerUnit,
                           yaw,
+                          style,
                           m_hdrScene,
                           m_post.GetSettings().emissionGain,
                           Width,

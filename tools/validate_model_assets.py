@@ -144,6 +144,57 @@ def check_obj(path):
     return triangles
 
 
+def check_buildings(art, catalog):
+    """Check the authored geometry/placement contract, without executing the renderer."""
+    entries = {entry['name']: entry for entry in catalog['environment']}
+    sizes = set()
+    count = 0
+    for raw in (ROOT / 'SimpleGame/Data/afterglow.district').read_text(encoding='utf-8').splitlines():
+        fields = raw.partition('#')[0].split()
+        if not fields or fields[0] != 'building':
+            continue
+        asset = entries['ENV_building_' + fields[1]]
+        x, y, width, depth, height = map(float, fields[2:7])
+        source = []
+        for line in (art / 'LowPoly' / asset['file']).read_text().splitlines():
+            words = line.split()
+            if words and words[0] == 'v':
+                source.append(tuple(map(float, words[1:])))
+        low = [min(point[axis] for point in source) for axis in range(3)]
+        high = [max(point[axis] for point in source) for axis in range(3)]
+        assert all(high[axis] - low[axis] > 1e-5 for axis in range(3))
+        # Place actual Blender Z-up vertices directly into the unchanged district footprint.
+        world = [(x + (px - low[0]) / (high[0] - low[0]) * width,
+                  y + (py - low[1]) / (high[1] - low[1]) * depth,
+                  (pz - low[2]) / (high[2] - low[2]) * height)
+                 for px, py, pz in source]
+        assert abs(min(p[0] for p in world) - x) < 1e-5
+        assert abs(max(p[0] for p in world) - x - width) < 1e-5
+        assert abs(min(p[1] for p in world) - y) < 1e-5
+        assert abs(max(p[1] for p in world) - y - depth) < 1e-5
+        assert abs(min(p[2] for p in world)) < 1e-5
+        assert abs(max(p[2] for p in world) - height) < 1e-5
+        for zoom in (.7, 1.15, 1.65):
+            required = max((width + depth) * 32 * zoom + 8,
+                           (height * zoom + (width + depth) * 8 * zoom + 4) / .75,
+                           ((width + depth) * 8 * zoom + 4) / .25)
+            size = next((value for value in (512, 1024, 2048) if value >= required), None)
+            assert size is not None, fields[1]
+            sizes.add(size)
+            for px, py, z in world:
+                dx, dy = px - x - width / 2, py - y - depth / 2
+                screen_x = (dx - dy) * 32 * zoom
+                screen_y = ((dx + dy) * 16 - z) * zoom
+                assert -size / 2 + 3 < screen_x < size / 2 - 3
+                assert -size * .75 + 3 < screen_y < size * .25 - 3
+        count += 1
+    variants = [name for name in entries if name.startswith('ENV_building_') and
+                name not in ('ENV_building_arcadia', 'ENV_building_tower')]
+    assert variants, 'Procedural towns need ordinary building models'
+    print(f'Building placement contract OK: {count} authored mappings, {len(variants)} procedural variants; '
+          f'zoom .7/1.15/1.65 fits cached target sizes {sorted(sizes)}.')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--art', type=Path, default=ROOT / '.modeling-dev/Art')
@@ -170,6 +221,7 @@ def main():
         assert entry['name'] not in ids
         ids.add(entry['name'])
         assert check_obj(art / 'LowPoly' / entry['file']) == entry['triangles']
+    check_buildings(art, catalog)
     ns = {'ms': 'http://schemas.microsoft.com/developer/msbuild/2003'}
     for name in ('SimpleGame.vcxproj', 'SimpleGame.vcxproj.filters'):
         project = ET.parse(ROOT / 'SimpleGame' / name)

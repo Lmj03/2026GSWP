@@ -1,6 +1,7 @@
 #version 330 core
 in vec2 v_UV;
 uniform sampler2D u_Model;
+uniform float u_Opacity;
 out vec4 FragColor;
 void main()
 {
@@ -14,4 +15,5 @@ void main()
         discard;
     }
     FragColor.rgb /= FragColor.a;
+    FragColor.a *= u_Opacity;
 }

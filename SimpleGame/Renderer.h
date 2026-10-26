@@ -31,7 +31,8 @@ public:
                const Models::Animator& animation,
                Point foot,
                float pixelsPerUnit,
-               float yaw);
+               float yaw,
+               const Models::DrawStyle& style = Models::DrawStyle());
 
     const PostProcessing::Settings& PostSettings() const
     {
