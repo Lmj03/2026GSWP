@@ -25,7 +25,7 @@ Visual Studio에서 SimpleGame.sln을 열고 SimpleGame을 시작 프로젝트�
 
 렌더러와 셰이더의 정점 형식이 함께 변경되었다. 예전 실행 파일이나 셰이더를 섞지 않는다. 빌드 후 작업에서 Shaders와 Data 전체를 출력 폴더에 복사하도록 설정했다. 특히 Data/Locale/ko.txt도 실행 파일 옆에 필요하다.
 
-별도 배포 시 같은 아키텍처의 glew32.dll, freeglut.dll과 Shaders, Data 폴더를 EXE 옆에 둔다. 자원은 EXE 옆을 우선해서 읽으므로 소스 데이터를 수정한 뒤 다시 빌드해 복사하거나 출력 폴더의 데이터도 갱신해야 한다.
+현재 창·입력 프레임워크는 GLFW다. 공식 소스를 프로젝트 참조로 정적 빌드하므로 별도 GLFW DLL은 필요하지 않다. 같은 아키텍처의 glew32.dll과 Shaders, Data 폴더를 EXE 옆에 둔다. 빌드 후 자동으로 복사하며, 자원은 EXE 옆을 우선해서 읽는다. 소스 데이터를 수정한 뒤 다시 빌드해 복사하거나 출력 폴더의 데이터도 갱신해야 한다. 세부 빌드 구성과 성능 확인 항목은 [GLFW 전환 안내](GLFW_MIGRATION.md)를 따른다.
 
 ## 조작
 

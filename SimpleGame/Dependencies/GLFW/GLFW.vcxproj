@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32"><Configuration>Debug</Configuration><Platform>Win32</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32"><Configuration>Release</Configuration><Platform>Win32</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{58E6C143-B617-49E9-AF76-65BD57767403}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>GLFW</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
+    <UseDebugLibraries>false</UseDebugLibraries>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <OutDir>$(ProjectDir)build\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)build\$(Platform)\$(Configuration)\obj\</IntDir>
+    <TargetName>glfw3</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir)glfw-3.4\include;$(ProjectDir)glfw-3.4\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <CompileAs>CompileAsC</CompileAs>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
+      <WarningLevel>Level3</WarningLevel>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="glfw-3.4\src\context.c" />
+    <ClCompile Include="glfw-3.4\src\init.c" />
+    <ClCompile Include="glfw-3.4\src\input.c" />
+    <ClCompile Include="glfw-3.4\src\monitor.c" />
+    <ClCompile Include="glfw-3.4\src\platform.c" />
+    <ClCompile Include="glfw-3.4\src\vulkan.c" />
+    <ClCompile Include="glfw-3.4\src\window.c" />
+    <ClCompile Include="glfw-3.4\src\egl_context.c" />
+    <ClCompile Include="glfw-3.4\src\osmesa_context.c" />
+    <ClCompile Include="glfw-3.4\src\null_init.c" />
+    <ClCompile Include="glfw-3.4\src\null_monitor.c" />
+    <ClCompile Include="glfw-3.4\src\null_window.c" />
+    <ClCompile Include="glfw-3.4\src\null_joystick.c" />
+    <ClCompile Include="glfw-3.4\src\win32_module.c" />
+    <ClCompile Include="glfw-3.4\src\win32_time.c" />
+    <ClCompile Include="glfw-3.4\src\win32_thread.c" />
+    <ClCompile Include="glfw-3.4\src\win32_init.c" />
+    <ClCompile Include="glfw-3.4\src\win32_joystick.c" />
+    <ClCompile Include="glfw-3.4\src\win32_monitor.c" />
+    <ClCompile Include="glfw-3.4\src\win32_window.c" />
+    <ClCompile Include="glfw-3.4\src\wgl_context.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="glfw-3.4\include\GLFW\glfw3.h" />
+    <ClInclude Include="glfw-3.4\include\GLFW\glfw3native.h" />
+    <None Include="glfw-3.4\LICENSE.md" />
+    <None Include="README.md" />
+    <None Include="upstream.sha256" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

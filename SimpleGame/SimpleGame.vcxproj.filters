@@ -140,4 +140,12 @@
     <None Include="Shaders\ModelComposite.fs" />
     <None Include="Data\Rendering\models.cfg" />
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="GlfwApplication.cpp" />
+    <ClCompile Include="FramePacer.cpp" />
+    <ClInclude Include="GlfwApplication.h" />
+    <ClInclude Include="FramePacer.h" />
+    <None Include="Data\Rendering\window.cfg" />
+    <Text Include="..\docs\GLFW_MIGRATION.md" />
+  </ItemGroup>
 </Project>

@@ -46,7 +46,8 @@ FrameProfiler::FrameProfiler()
                "instance_upload_bytes,texture_binds,texture_splits,capacity_splits,culled,"
                "font_hits,font_misses,font_upload_bytes,legacy_draw_estimate,legacy_vertices\n";
     }
-    Event("schema=2 renderer=ordered_quad_instances_v1 cpu_times_only=1 timer_ms=16");
+    Event(
+        "schema=2 renderer=ordered_quad_instances_v1 cpu_times_only=1 timing=application_deadline");
 #ifdef _DEBUG
     Event("configuration=Debug");
 #else

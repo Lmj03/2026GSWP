@@ -20,7 +20,7 @@ CSV는 메모리에 모아 약 1초마다 저장하고 정상 종료 시 남은 
 | render_cpu_ms | `city.Draw`의 CPU 경과 시간. submit/post 시간 포함 |
 | submit_cpu_ms | 인스턴스 버퍼 업로드와 배치 draw 제출의 CPU 시간 |
 | post_cpu_ms | 후처리 Present의 CPU 시간 |
-| swap_ms | `glutSwapBuffers` 경과 시간. VSync·드라이버 대기가 포함될 수 있음 |
+| swap_ms | `glfwSwapBuffers` 경과 시간. VSync·드라이버 대기가 포함될 수 있음 |
 | previous_log_ms | 직전 프레임의 행 생성·콘솔·파일 기록 비용. 현재 frame interval에 포함될 수 있음 |
 | draw_total, draw_world, draw_overlay, draw_post | 전체·월드·UI·후처리의 실제 API 호출 수 |
 | instanced_draws, instances | 인스턴스 draw 호출 수와 제출된 인스턴스 수 |

@@ -27,3 +27,6 @@
 **/Logs/
 **/Cache/
 tools/__pycache__/
+
+# GLFW is built from the committed source for the selected platform/configuration.
+/SimpleGame/Dependencies/GLFW/build/

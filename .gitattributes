@@ -1,0 +1,2 @@
+# Preserve the official GLFW source distribution byte-for-byte for integrity checks.
+SimpleGame/Dependencies/GLFW/glfw-3.4/** -text
