@@ -10,6 +10,9 @@ uniform float u_Scale;
 uniform float u_Yaw;
 uniform mat4 u_ModelTransform;
 uniform float u_TargetSize;
+uniform bool u_Ground;
+uniform vec2 u_GroundFoot;
+uniform vec2 u_GroundScreen;
 out vec3 v_Normal;
 out vec4 v_Color;
 out vec3 v_Emission;
@@ -21,9 +24,18 @@ void main()
     mat3 turn = mat3(c, 0, -s, 0, 1, 0, s, 0, c);
     mat4 model = u_ModelTransform * skin;
     vec3 p = turn * (model * vec4(a_Position, 1)).xyz;
-    vec2 pixel = vec2(0.5, 0.25) * u_TargetSize +
-                 vec2(p.x + p.z, p.y - (p.x - p.z) * 0.5) * u_Scale;
-    gl_Position = vec4(pixel / u_TargetSize * 2.0 - 1.0, -(p.x - p.z + p.y * 0.5) / 128.0, 1);
+    vec2 projected = vec2(p.x + p.z, p.y - (p.x - p.z) * 0.5) * u_Scale;
+    if (u_Ground)
+    {
+        vec2 pixel = u_GroundFoot + vec2(projected.x, -projected.y);
+        gl_Position = vec4(pixel.x / u_GroundScreen.x * 2.0 - 1.0,
+                           1.0 - pixel.y / u_GroundScreen.y * 2.0, 0, 1);
+    }
+    else
+    {
+        vec2 pixel = vec2(0.5, 0.25) * u_TargetSize + projected;
+        gl_Position = vec4(pixel / u_TargetSize * 2.0 - 1.0, -(p.x - p.z + p.y * 0.5) / 128.0, 1);
+    }
     v_Normal = turn * transpose(inverse(mat3(model))) * a_Normal;
     v_Color = a_Color;
     v_Emission = a_Emission;

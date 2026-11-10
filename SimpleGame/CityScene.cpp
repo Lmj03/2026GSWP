@@ -26,6 +26,7 @@ void LabelSpaces(std::string& text)
 bool CityScene::Load()
 {
     m_models.Initialize();
+    LoadEnvironmentModels();
     if (!m_text.Load(L"Data/Locale/ko.txt"))
     {
         std::cerr << "Data/Locale/ko.txt 한글 문구 파일을 불러올 수 없습니다.\n";
@@ -85,15 +86,15 @@ bool CityScene::Load()
         else if (type == "building")
         {
             Building b{};
+            std::string label;
             valid =
-                bool(input >> b.id >> b.x >> b.y >> b.w >> b.d >> b.height >> b.palette >> b.sign);
+                bool(input >> b.id >> b.x >> b.y >> b.w >> b.d >> b.height >> b.palette >> label);
             valid = valid && std::isfinite(b.x) && std::isfinite(b.y) && b.x >= -2048 &&
                     b.y >= -2048 && b.x + b.w <= 2056 && b.y + b.d <= 2056 && b.w > 0 && b.w <= 8 &&
                     b.d > 0 && b.d <= 8 && b.height >= 20 && b.height <= 400 && b.palette >= 0 &&
-                    b.palette <= 2 && b.sign.size() <= 80 && ids.insert(b.id).second;
+                    b.palette <= 2 && label.size() <= 80 && ids.insert(b.id).second;
             if (valid)
             {
-                LabelSpaces(b.sign);
                 AddBuilding(b);
             }
         }

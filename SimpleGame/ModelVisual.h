@@ -8,6 +8,7 @@ class ModelVisual
 {
 public:
     bool Bind(ModelLibrary& library, const std::string& id);
+    void SetAsset(std::shared_ptr<const Models::Asset> asset);
     void Update(const std::string& clip, float dt, float speed = 1, bool restart = false);
     bool Draw(Renderer& renderer,
               Point screenFoot,

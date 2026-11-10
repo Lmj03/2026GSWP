@@ -73,6 +73,7 @@ struct ModelRenderer::State
     GLuint program = 0, compose = 0, emptyVao = 0;
     GLint palette = -1, scale = -1, yaw = -1, hdr = -1, emission = -1;
     GLint modelTransform = -1, targetSize = -1;
+    GLint ground = -1, groundFoot = -1, groundScreen = -1;
     GLint foot = -1, screen = -1, compositeSize = -1, opacity = -1;
     bool attempted = false, ready = false;
 
@@ -117,6 +118,9 @@ struct ModelRenderer::State
         emission = glGetUniformLocation(program, "u_EmissionGain");
         modelTransform = glGetUniformLocation(program, "u_ModelTransform");
         targetSize = glGetUniformLocation(program, "u_TargetSize");
+        ground = glGetUniformLocation(program, "u_Ground");
+        groundFoot = glGetUniformLocation(program, "u_GroundFoot");
+        groundScreen = glGetUniformLocation(program, "u_GroundScreen");
         foot = glGetUniformLocation(compose, "u_Foot");
         screen = glGetUniformLocation(compose, "u_Screen");
         compositeSize = glGetUniformLocation(compose, "u_TargetSize");
@@ -269,33 +273,46 @@ bool ModelRenderer::Draw(const std::shared_ptr<const Models::Asset>& asset,
             return false;
         }
     }
-    GLint target = 0, viewport[4] = {};
-    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &target);
-    glGetIntegerv(GL_VIEWPORT, viewport);
-    const State::Target* modelTarget =
-        m_state->Initialize() ? m_state->GetTarget(style.targetSize) : nullptr;
-    if (!modelTarget)
+    if (!m_state->Initialize())
     {
-        glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(target));
-        glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
         return false;
+    }
+    GLint target = 0, viewport[4] = {};
+    const State::Target* modelTarget = nullptr;
+    if (!style.ground)
+    {
+        glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &target);
+        glGetIntegerv(GL_VIEWPORT, viewport);
+        modelTarget = m_state->GetTarget(style.targetSize);
+        if (!modelTarget)
+        {
+            glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(target));
+            return false;
+        }
     }
     const auto start = FrameProfiler::Clock::now();
     const auto& mesh = m_state->Upload(asset);
     auto& profiler = FrameProfiler::Instance();
     // Cache bounded target sizes; resolve immediately to preserve SceneGraph painter order.
-    glBindFramebuffer(GL_FRAMEBUFFER, modelTarget->framebuffer);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glViewport(0, 0, style.targetSize, style.targetSize);
-    glDisable(GL_BLEND);
     glDisable(GL_CULL_FACE);
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-    glDepthFunc(GL_LESS);
-    glClearDepth(1);
-    glClearColor(0, 0, 0, 0);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    if (modelTarget)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, modelTarget->framebuffer);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glViewport(0, 0, style.targetSize, style.targetSize);
+        glDisable(GL_BLEND);
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_TRUE);
+        glDepthFunc(GL_LESS);
+        glClearDepth(1);
+        glClearColor(0, 0, 0, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
+    else
+    {
+        glDisable(GL_DEPTH_TEST);
+    }
     glUseProgram(m_state->program);
     glUniformMatrix4fv(m_state->palette,
                        static_cast<GLsizei>(animation.Palette().size()),
@@ -306,11 +323,23 @@ bool ModelRenderer::Draw(const std::shared_ptr<const Models::Asset>& asset,
     glUniform1f(m_state->yaw, yaw);
     glUniformMatrix4fv(m_state->modelTransform, 1, GL_FALSE, style.transform.data());
     glUniform1f(m_state->targetSize, static_cast<float>(style.targetSize));
+    glUniform1i(m_state->ground, style.ground ? 1 : 0);
+    if (style.ground)
+    {
+        glUniform2f(m_state->groundFoot, foot.x, foot.y);
+        glUniform2f(m_state->groundScreen, width, height);
+    }
     profiler.Current().uploadBytes += sizeof(Models::Matrix);
     glUniform1i(m_state->hdr, hdr ? 1 : 0);
     glUniform1f(m_state->emission, emissionGain);
     glBindVertexArray(mesh.vao);
     profiler.DrawElements(GL_TRIANGLES, mesh.count, GL_UNSIGNED_INT, nullptr);
+    if (style.ground)
+    {
+        glBindVertexArray(0);
+        profiler.Current().submitMs += FrameProfiler::Milliseconds(start);
+        return true;
+    }
     glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(target));
     glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
     glDisable(GL_DEPTH_TEST);

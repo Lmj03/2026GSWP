@@ -35,6 +35,7 @@ void CityScene::AddBuilding(Building building)
     {
         actor = &m_sceneGraph.Create<BuildingActor>(id, "streamed", *this, building);
         m_sceneGraph.Create<ReflectionActor>(id + "/reflection", id, *this, *actor);
+        AddBuildingDecoration(*actor);
     }
     else
     {

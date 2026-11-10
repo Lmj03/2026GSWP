@@ -13,7 +13,6 @@ namespace
 const Color Cyan(.18f, .94f, .91f);
 const Color Pink(1.f, .2f, .54f);
 const Color Amber(1.f, .66f, .24f);
-const Color White(.83f, .94f, .98f);
 const Color Muted(.39f, .55f, .65f);
 
 Color Accent(int palette)
@@ -64,8 +63,22 @@ bool BuildingStyle(const Models::Asset& asset,
 
 }
 
-void CityScene::DrawTerrain(Renderer& r, Point origin) const
+void CityScene::DrawTerrain(Renderer& r, Point origin, const ModelVisual& surface) const
 {
+    const Point center = Project(origin.x + ChunkSize * .5f, origin.y + ChunkSize * .5f);
+    const float halfWidth = ChunkSize * 32 * m_zoom;
+    const float halfHeight = ChunkSize * 16 * m_zoom;
+    if (center.x + halfWidth < -20 || center.x - halfWidth > Renderer::Width + 20 ||
+        center.y + halfHeight < -20 || center.y - halfHeight > Renderer::Height + 20)
+    {
+        return;
+    }
+    Models::DrawStyle style;
+    style.ground = true;
+    if (surface.Draw(r, center, 32 * m_zoom, style))
+    {
+        return;
+    }
     for (int ix = 0; ix < ChunkSize; ++ix)
     {
         for (int iy = 0; iy < ChunkSize; ++iy)
@@ -156,6 +169,19 @@ void CityScene::DrawReflection(Renderer& r, const Building& b) const
     }
 }
 
+float CityScene::BuildingOpacity(const Building& b, Point position) const
+{
+    const Point a = Project(position.x, position.y, b.height);
+    const Point right = Project(position.x + b.w, position.y);
+    const Point left = Project(position.x, position.y + b.d);
+    const Point front = Project(position.x + b.w, position.y + b.d);
+    const Point player = Project(m_player.x, m_player.y, 18);
+    const bool covers = player.x > left.x - 10 && player.x < right.x + 10 && player.y > a.y - 10 &&
+                        player.y < front.y + 8 &&
+                        m_player.x + m_player.y < position.x + position.y + b.w + b.d;
+    return covers ? .23f : 1.f;
+}
+
 void CityScene::DrawBuilding(Renderer& r, const Building& b, const ModelVisual* model) const
 {
     const Point a = Project(b.x, b.y), right = Project(b.x + b.w, b.y);
@@ -166,11 +192,7 @@ void CityScene::DrawBuilding(Renderer& r, const Building& b, const ModelVisual* 
     {
         return;
     }
-    const Point player = Project(m_player.x, m_player.y, 18);
-    const bool covers = player.x > left.x - 10 && player.x < right.x + 10 &&
-                        player.y > a.y - h - 10 && player.y < front.y + 8 &&
-                        m_player.x + m_player.y < b.x + b.y + b.w + b.d;
-    const float opacity = covers ? .23f : 1.f;
+    const float opacity = BuildingOpacity(b, {b.x, b.y});
     const Color neon = Accent(b.palette).Alpha(opacity).Emissive(3.f);
     const Point at(a.x, a.y - h), bt(right.x, right.y - h);
     const Point ct(front.x, front.y - h), dt(left.x, left.y - h);
@@ -270,48 +292,6 @@ void CityScene::DrawBuilding(Renderer& r, const Building& b, const ModelVisual* 
         r.Glow({antenna.x, antenna.y - 27 * m_zoom}, 9, 9, Pink.Alpha(opacity));
         r.Rect(antenna.x - 1, antenna.y - 28 * m_zoom, 2, 2, Pink.Alpha(opacity).Emissive(3.f));
     }
-
-    float scale = (b.id == "arcadia" ? 1.4f : .95f) * m_zoom;
-    const float maxSign = std::max(95.f, (b.w + b.d) * 24.f) * m_zoom;
-    const float nearestX = std::max(b.x, std::min(b.x + b.w, m_player.x));
-    const float nearestY = std::max(b.y, std::min(b.y + b.d, m_player.y));
-    const bool showName =
-        m_interface && std::hypot(nearestX - m_player.x, nearestY - m_player.y) <= 2.5f;
-    const float measured = showName ? r.MeasureText(b.sign, scale) : 0;
-    if (measured > maxSign)
-    {
-        scale *= maxSign / measured;
-    }
-    const float signWidth = showName ? r.MeasureText(b.sign, scale) + 14 * m_zoom : maxSign * .75f;
-    const float signHeight = 16 * scale + 12 * m_zoom;
-    const Point sign = Project(b.x + b.w * .55f, b.y + b.d, b.height * .65f);
-    const float pulse = .86f + .14f * std::sin(m_time * 2 + b.palette);
-    r.Glow(sign, signWidth * .8f, 27 * m_zoom, neon.Alpha(opacity * pulse));
-    r.Rect(sign.x - signWidth * .5f,
-           sign.y - 6 * m_zoom,
-           signWidth,
-           signHeight,
-           Color(.015f, .025f, .045f, opacity));
-    r.Line({sign.x - signWidth * .5f, sign.y - 6 * m_zoom},
-           {sign.x + signWidth * .5f, sign.y - 6 * m_zoom},
-           2,
-           neon);
-    r.Line({sign.x - signWidth * .5f, sign.y - 6 * m_zoom + signHeight},
-           {sign.x + signWidth * .5f, sign.y - 6 * m_zoom + signHeight},
-           1,
-           neon.Alpha(opacity * .5f));
-    if (showName)
-    {
-        r.Text(sign.x - signWidth * .5f + 7 * m_zoom, sign.y, b.sign, scale, neon.Shade(pulse));
-    }
-    if (showName && b.id == "arcadia")
-    {
-        r.Text(sign.x - signWidth * .5f,
-               sign.y + signHeight + 2 * m_zoom,
-               m_text.Get("sign.arcadia_motto"),
-               .65f * m_zoom,
-               White.Alpha(opacity * .7f));
-    }
 }
 
 void CityScene::DrawActor(Renderer& r, Point position, int role, float phase, bool friendly) const
@@ -397,6 +377,14 @@ void CityScene::DrawDrone(Renderer& r, Point position) const
                {scan.x + 30 * m_zoom, scan.y},
                Cyan.Alpha(.045f));
     r.Ellipse(scan, 31 * m_zoom, 10 * m_zoom, Cyan.Alpha(.055f));
+    if (DrawEnvironmentModel(r,
+                             m_droneModel,
+                             {droneX, droneY},
+                             .75f,
+                             87 + std::sin(m_time * 2) * 3))
+    {
+        return;
+    }
     r.Line({drone.x - 18 * m_zoom, drone.y}, {drone.x + 18 * m_zoom, drone.y}, 3 * m_zoom, Muted);
     r.Ellipse({drone.x - 18 * m_zoom, drone.y}, 9 * m_zoom, 3 * m_zoom, Color(.2f, .3f, .38f));
     r.Ellipse({drone.x + 18 * m_zoom, drone.y}, 9 * m_zoom, 3 * m_zoom, Color(.2f, .3f, .38f));

@@ -141,14 +141,9 @@ bool ModelLibrary::Initialize(const std::wstring& root)
         }
     }
     m_root = root.empty() ? FindRoot() : root;
-    if (m_root.empty())
-    {
-        Failure("catalog", "Art folder not found; procedural visuals retained");
-        return false;
-    }
     try
     {
-        if (Exists(m_root + L"/Characters/manifest.json"))
+        if (!m_root.empty() && Exists(m_root + L"/Characters/manifest.json"))
         {
             const auto manifest = ReadJson(m_root + L"/Characters/manifest.json");
             for (const auto& item : manifest.at("assets"))
@@ -168,7 +163,7 @@ bool ModelLibrary::Initialize(const std::wstring& root)
                 }
             }
         }
-        if (Exists(m_root + L"/LowPoly/catalog.json"))
+        if (!m_root.empty() && Exists(m_root + L"/LowPoly/catalog.json"))
         {
             const auto catalog = ReadJson(m_root + L"/LowPoly/catalog.json");
             if (catalog.at("version") != 1 || catalog.at("axis") != "Z_UP_Y_FORWARD")
@@ -203,28 +198,77 @@ bool ModelLibrary::Initialize(const std::wstring& root)
             }
             for (const auto& item : catalog.at("environment"))
             {
-                const auto id = add(item);
-                if (id.compare(0, 13, "ENV_building_") == 0 && id != "ENV_building_arcadia" &&
-                    id != "ENV_building_tower")
-                {
-                    m_buildingVariants.push_back(id);
-                }
+                add(item);
             }
-            std::sort(m_buildingVariants.begin(), m_buildingVariants.end());
         }
-        m_enabled = !m_entries.empty();
-        FrameProfiler::Instance().Event("model_catalog root=" + PathUtf8(m_root) +
-                                        " entries=" + std::to_string(m_entries.size()));
-        return m_enabled;
     }
     catch (const std::exception& error)
     {
         m_entries.clear();
         m_parts.clear();
-        m_buildingVariants.clear();
         Failure("catalog", error.what());
-        return false;
     }
+
+    // Packaged environment assets are independent of the optional character/art worktree.
+    std::wstring packagePath;
+    std::string packageText;
+    if (ReadResource(L"Data/Environment/catalog.json", packageText, &packagePath))
+    {
+        try
+        {
+            const auto package = Json::parse(packageText);
+            if (package.at("version") != 1 || package.at("axis") != "Z_UP_Y_FORWARD")
+            {
+                throw std::runtime_error("unsupported environment catalog contract");
+            }
+            const auto folder = packagePath.substr(0, packagePath.find_last_of(L"/\\") + 1);
+            std::map<std::string, Entry> entries;
+            for (const auto& item : package.at("environment"))
+            {
+                const auto id = item.at("name").get<std::string>();
+                Entry entry;
+                entry.file = folder + Relative(item.at("file").get<std::string>());
+                if (id.compare(0, 4, "ENV_") != 0 || entry.file.size() < 4 ||
+                    entry.file.substr(entry.file.size() - 4) != L".obj" ||
+                    !entries.emplace(id, std::move(entry)).second)
+                {
+                    throw std::runtime_error("invalid or duplicate environment entry");
+                }
+            }
+            // Use local art when present, fill missing IDs from the tracked runtime package.
+            for (auto& item : entries)
+            {
+                const auto found = m_entries.find(item.first);
+                if (found == m_entries.end() || !Exists(found->second.file))
+                {
+                    m_entries[item.first] = std::move(item.second);
+                }
+            }
+            FrameProfiler::Instance().Event("environment_catalog path=" + PathUtf8(packagePath) +
+                                            " entries=" + std::to_string(entries.size()));
+        }
+        catch (const std::exception& error)
+        {
+            Failure("environment_catalog", error.what());
+        }
+    }
+    for (const auto& item : m_entries)
+    {
+        const auto& id = item.first;
+        if (!item.second.glb && id.compare(0, 13, "ENV_building_") == 0 &&
+            id != "ENV_building_arcadia" && id != "ENV_building_tower")
+        {
+            m_buildingVariants.push_back(id);
+        }
+    }
+    m_enabled = !m_entries.empty();
+    FrameProfiler::Instance().Event("model_catalog root=" + PathUtf8(m_root) +
+                                    " entries=" + std::to_string(m_entries.size()));
+    if (!m_enabled)
+    {
+        Failure("catalog", "no art or packaged environment; procedural visuals retained");
+    }
+    return m_enabled;
 }
 
 std::shared_ptr<const Models::Asset> ModelLibrary::Get(const std::string& id)

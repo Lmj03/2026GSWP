@@ -20,7 +20,7 @@ for path in sources:
     for key in re.findall(r'"((?:story|choice|npc|journal|world|monitor|hud|town)\.[A-Za-z0-9_.]+)"', text):
         if not key.endswith('.') and key not in locale:
             raise ValueError(f'{path.name}: missing locale {key}')
-for prefix, count in [('npc.job.', 7), ('npc.activity.', 11), ('npc.info.', 7), ('story.objective.', 8), ('world.sign.', 5)]:
+for prefix, count in [('npc.job.', 7), ('npc.activity.', 11), ('npc.info.', 7), ('story.objective.', 8)]:
     for index in range(count):
         if prefix + str(index) not in locale:
             raise ValueError(f'Missing dynamic key {prefix}{index}')

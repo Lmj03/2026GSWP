@@ -30,3 +30,6 @@ tools/__pycache__/
 
 # GLFW is built from the committed source for the selected platform/configuration.
 /SimpleGame/Dependencies/GLFW/build/
+
+# These are Wavefront meshes, not compiled object files.
+!/SimpleGame/Data/Environment/environment/*.obj

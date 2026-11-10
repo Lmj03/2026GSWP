@@ -42,7 +42,6 @@ CityScene::ChunkContent CityScene::GenerateChunk(const ChunkKey& key) const
         b.y = BuildingInset + ((value >> 27) % 2) * (ChunkSize - BuildingInset * 2 - b.d);
         b.height = (region == 4 ? 100.f : region == 3 ? 45.f : 55.f) + float((value >> 35) % 55);
         b.palette = region == 1 ? 1 : region == 3 ? 2 : int((value >> 43) % 3);
-        b.sign = m_text.Get("world.sign." + std::to_string(region));
         bool clear = true;
         for (int x = int(std::floor(b.x - .2f)); x <= int(std::floor(b.x + b.w + .2f)); ++x)
         {
@@ -220,17 +219,21 @@ void CityScene::RefreshWorld()
         for (int y = -StreamRadius; y <= StreamRadius; ++y)
         {
             m_chunks.insert({x, y});
+            const ChunkKey key(m_originX + x, m_originY + y);
             const std::string terrainId =
-                "terrain/" + std::to_string(m_originX + x) + "/" + std::to_string(m_originY + y);
+                "terrain/" + std::to_string(key.first) + "/" + std::to_string(key.second);
             Actor* terrain = m_sceneGraph.Find(terrainId);
             if (!terrain)
             {
-                terrain = &m_sceneGraph.Create<TerrainActor>(terrainId, "streamed", *this);
+                terrain = &m_sceneGraph.Create<TerrainActor>(terrainId,
+                                                             "streamed",
+                                                             *this,
+                                                             key.first,
+                                                             key.second);
             }
             terrain->SetLocalPosition(
                 {static_cast<float>(x * ChunkSize), static_cast<float>(y * ChunkSize)});
             m_nextStreamActors.insert(terrainId);
-            const ChunkKey key(m_originX + x, m_originY + y);
             auto found = m_generated.find(key);
             if (found == m_generated.end())
             {
@@ -262,6 +265,7 @@ void CityScene::RefreshWorld()
                      (building.y - static_cast<float>(cy * ChunkSize));
         AddBuilding(std::move(building));
     }
+    RefreshEnvironmentProps();
     for (const std::string& id : m_streamActors)
     {
         if (!m_nextStreamActors.count(id))

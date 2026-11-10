@@ -48,6 +48,9 @@ public:
 
 private:
     ModelLibrary m_models;
+    std::map<std::string, std::shared_ptr<const Models::Asset>> m_terrainModels;
+    ModelVisual m_supplyModel, m_terminalModel, m_droneModel, m_refugeGround;
+    std::array<ModelVisual, 3> m_refugeModels;
     TelemetryClient m_telemetry;
     bool m_monitorInitialized = false;
     bool m_monitorEnabled = false;
@@ -63,6 +66,7 @@ private:
     friend class CitizenActor;
     friend class BuildingActor;
     friend class TerrainActor;
+    friend class EnvironmentPropActor;
     friend class ReflectionActor;
     friend class LootActor;
     friend class SupplyActor;
@@ -84,6 +88,17 @@ private:
     std::set<std::string> m_streamActors;
     std::set<std::string> m_nextStreamActors;
     void AddBuilding(Building building);
+    void LoadEnvironmentModels();
+    void AddBuildingDecoration(const BuildingActor& building);
+    void RefreshEnvironmentProps();
+    std::shared_ptr<const Models::Asset> TerrainModel(std::int64_t cx, std::int64_t cy);
+    bool DrawEnvironmentModel(Renderer& renderer,
+                              const ModelVisual& model,
+                              Point position,
+                              float scale,
+                              float height = 0,
+                              float opacity = 1) const;
+    float BuildingOpacity(const Building& building, Point position) const;
     void AddCitizen(Citizen citizen);
     void AddEnemy(const Enemy& enemy);
     void RefreshEnemies();
@@ -108,7 +123,7 @@ private:
     void UpdateCitizen(Citizen& citizen, float dt, float phase);
     void UpdateEnemy(Enemy& enemy, float dt);
     void CollectLoot(Enemy& enemy, float dt);
-    void DrawTerrain(Renderer& renderer, Point origin) const;
+    void DrawTerrain(Renderer& renderer, Point origin, const ModelVisual& surface) const;
     void DrawReflection(Renderer& renderer, const Building& building) const;
     void DrawSupply(Renderer& renderer) const;
     void DrawMarker(Renderer& renderer, Point world, Color color, const std::string& key) const;

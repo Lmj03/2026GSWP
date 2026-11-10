@@ -68,11 +68,30 @@ private:
 class TerrainActor final : public Actor
 {
 public:
-    TerrainActor(const std::string& id, CityScene& scene);
+    TerrainActor(const std::string& id, CityScene& scene, std::int64_t cx, std::int64_t cy);
     void Draw(Renderer& renderer) const override;
 
 private:
     CityScene& m_scene;
+    ModelVisual m_surface;
+};
+
+class EnvironmentPropActor final : public Actor
+{
+public:
+    EnvironmentPropActor(const std::string& id,
+                         CityScene& scene,
+                         const char* asset,
+                         float scale,
+                         float yaw,
+                         float height = 0);
+    void Draw(Renderer& renderer) const override;
+
+private:
+    CityScene& m_scene;
+    ModelVisual m_model;
+    float m_scale;
+    float m_height;
 };
 
 class ReflectionActor final : public Actor
@@ -159,6 +178,7 @@ class DroneActor final : public Actor
 {
 public:
     DroneActor(const std::string& id, CityScene& scene);
+    void Update(float dt) override;
     void Draw(Renderer& renderer) const override;
 
 private:

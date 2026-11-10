@@ -50,7 +50,7 @@ struct Enemy
 
 struct Building
 {
-    std::string id, sign;
+    std::string id;
     float x, y, w, d, height;
     int palette;
 };

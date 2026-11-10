@@ -234,17 +234,21 @@ void EnemyActor::Draw(Renderer& r) const
     m_scene.DrawEnemy(r, *this, drawn);
 }
 
-TerrainActor::TerrainActor(const std::string& id, CityScene& scene)
+TerrainActor::TerrainActor(const std::string& id,
+                           CityScene& scene,
+                           std::int64_t cx,
+                           std::int64_t cy)
     : Actor(id),
       m_scene(scene)
 {
     renderEnabled = true;
     layer = RenderLayer::Terrain;
+    m_surface.SetAsset(m_scene.TerrainModel(cx, cy));
 }
 
 void TerrainActor::Draw(Renderer& r) const
 {
-    m_scene.DrawTerrain(r, WorldPosition());
+    m_scene.DrawTerrain(r, WorldPosition(), m_surface);
 }
 
 ReflectionActor::ReflectionActor(const std::string& id, CityScene& scene, BuildingActor& building)
@@ -400,8 +404,17 @@ DroneActor::DroneActor(const std::string& id, CityScene& scene)
       m_scene(scene)
 {
     renderEnabled = true;
+    tickEnabled = true;
     layer = RenderLayer::Air;
     SetLocalPosition({11.7f, 11.3f});
+}
+
+void DroneActor::Update(float dt)
+{
+    if (m_scene.CanSimulate())
+    {
+        m_scene.m_droneModel.Update("hover", dt);
+    }
 }
 
 void DroneActor::Draw(Renderer& r) const

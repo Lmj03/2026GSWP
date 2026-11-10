@@ -219,6 +219,10 @@ void CityScene::DrawBaseGround(Renderer& r) const
     {
         return;
     }
+    if (DrawEnvironmentModel(r, m_refugeGround, local, .55f))
+    {
+        return;
+    }
     const Point a = Project(local.x - 1.1f, local.y - 1.1f);
     const Point b = Project(local.x + 1.1f, local.y - 1.1f);
     const Point c = Project(local.x + 1.1f, local.y + 1.1f);
@@ -248,14 +252,26 @@ void CityScene::DrawBaseProps(Renderer& r) const
     const Point bench = Project(local.x + .1f, local.y - .8f);
     const Point locker = Project(local.x + .8f, local.y - .1f);
     const float s = m_zoom;
-    r.Rect(cot.x - 18 * s, cot.y - 8 * s, 36 * s, 12 * s, Color(.12f, .3f, .32f));
-    r.Rect(cot.x - 15 * s, cot.y - 12 * s, 12 * s, 7 * s, BaseWhite);
-    r.Rect(bench.x - 20 * s, bench.y - 16 * s, 40 * s, 12 * s, Color(.25f, .19f, .12f));
-    r.Line({bench.x - 18 * s, bench.y - 18 * s}, {bench.x + 18 * s, bench.y - 18 * s}, 3, BaseGold);
-    r.Rect(bench.x - 8 * s, bench.y - 25 * s, 16 * s, 9 * s, BaseCyan.Emissive(.6f));
-    r.Rect(locker.x - 12 * s, locker.y - 32 * s, 24 * s, 32 * s, Color(.1f, .23f, .3f));
-    r.Line({locker.x, locker.y - 29 * s}, {locker.x, locker.y - 3 * s}, 1, BaseCyan);
-    r.Rect(locker.x + 3 * s, locker.y - 18 * s, 3 * s, 7 * s, BaseGold);
+    if (!DrawEnvironmentModel(r, m_refugeModels[0], {local.x - .75f, local.y + .5f}, .68f))
+    {
+        r.Rect(cot.x - 18 * s, cot.y - 8 * s, 36 * s, 12 * s, Color(.12f, .3f, .32f));
+        r.Rect(cot.x - 15 * s, cot.y - 12 * s, 12 * s, 7 * s, BaseWhite);
+    }
+    if (!DrawEnvironmentModel(r, m_refugeModels[1], {local.x + .1f, local.y - .8f}, .66f))
+    {
+        r.Rect(bench.x - 20 * s, bench.y - 16 * s, 40 * s, 12 * s, Color(.25f, .19f, .12f));
+        r.Line({bench.x - 18 * s, bench.y - 18 * s},
+               {bench.x + 18 * s, bench.y - 18 * s},
+               3,
+               BaseGold);
+        r.Rect(bench.x - 8 * s, bench.y - 25 * s, 16 * s, 9 * s, BaseCyan.Emissive(.6f));
+    }
+    if (!DrawEnvironmentModel(r, m_refugeModels[2], {local.x + .8f, local.y - .1f}, .72f))
+    {
+        r.Rect(locker.x - 12 * s, locker.y - 32 * s, 24 * s, 32 * s, Color(.1f, .23f, .3f));
+        r.Line({locker.x, locker.y - 29 * s}, {locker.x, locker.y - 3 * s}, 1, BaseCyan);
+        r.Rect(locker.x + 3 * s, locker.y - 18 * s, 3 * s, 7 * s, BaseGold);
+    }
     if (m_interface && std::hypot(m_player.x - local.x, m_player.y - local.y) < 2.5f)
     {
         const std::string title = m_text.Get("base.marker");

@@ -20,6 +20,8 @@ struct DrawStyle
     Matrix transform = Identity();
     float opacity = 1;
     int targetSize = 512;
+    // Planar terrain has ordered surface faces and needs no per-model depth target.
+    bool ground = false;
 };
 
 struct Pose

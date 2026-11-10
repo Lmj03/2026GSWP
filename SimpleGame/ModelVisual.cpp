@@ -8,15 +8,21 @@ bool ModelVisual::Bind(ModelLibrary& library, const std::string& id)
     {
         return bool(m_asset);
     }
+    SetAsset(library.Get(id));
     m_id = id;
-    m_asset = library.Get(id);
+    return bool(m_asset);
+}
+
+void ModelVisual::SetAsset(std::shared_ptr<const Models::Asset> asset)
+{
+    m_id.clear();
+    m_asset = std::move(asset);
     m_animation = Models::Animator();
     if (m_asset)
     {
         m_animation.SetAsset(*m_asset);
         m_animation.Play("idle", 0);
     }
-    return bool(m_asset);
 }
 
 void ModelVisual::Update(const std::string& clip, float dt, float speed, bool restart)

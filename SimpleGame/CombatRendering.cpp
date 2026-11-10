@@ -30,7 +30,10 @@ void CityScene::DrawMarker(Renderer& r, Point world, Color color, const std::str
     }
     r.Glow(p, 24 * m_zoom, 12 * m_zoom, color);
     r.Ellipse(p, 15 * m_zoom, 7 * m_zoom, color.Alpha(.4f));
-    r.Rect(p.x - 5 * m_zoom, p.y - 9 * m_zoom, 10 * m_zoom, 8 * m_zoom, color.Emissive(.6f));
+    if (!DrawEnvironmentModel(r, m_supplyModel, local, .65f))
+    {
+        r.Rect(p.x - 5 * m_zoom, p.y - 9 * m_zoom, 10 * m_zoom, 8 * m_zoom, color.Emissive(.6f));
+    }
     if (m_interface && std::hypot(local.x - m_player.x, local.y - m_player.y) < 2.5f)
     {
         const std::string label = m_text.Get(key);
@@ -58,6 +61,10 @@ void CityScene::DrawLoot(Renderer& r, const Enemy& enemy) const
     {
         const Point p = Project(local.x, local.y);
         r.Glow(p, 20 * m_zoom, 10 * m_zoom, LevelGold);
+        if (DrawEnvironmentModel(r, m_supplyModel, local, .32f))
+        {
+            return;
+        }
         r.Rect(p.x - 5, p.y - 9, 10, 8, LevelGold.Emissive(.6f));
         r.Rect(p.x - 15, p.y - 8, 6, 6, LevelCyan.Emissive(.5f));
         r.Rect(p.x + 9, p.y - 8, 6, 6, Color(.8f, .45f, 1.f).Emissive(.5f));

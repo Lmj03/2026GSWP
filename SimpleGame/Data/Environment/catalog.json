@@ -1,0 +1,567 @@
+{
+  "version": 1,
+  "axis": "Z_UP_Y_FORWARD",
+  "environment": [
+    {
+      "name": "ENV_building_arcadia",
+      "file": "environment/ENV_building_arcadia.obj",
+      "triangles": 856,
+      "bounds": [
+        [
+          -2.46,
+          -0.9850000000000001,
+          0.0
+        ],
+        [
+          2.46,
+          1.1725,
+          8.52
+        ]
+      ]
+    },
+    {
+      "name": "ENV_building_clinic",
+      "file": "environment/ENV_building_clinic.obj",
+      "triangles": 184,
+      "bounds": [
+        [
+          -0.9850000000000001,
+          -0.9850000000000001,
+          0.0
+        ],
+        [
+          0.9850000000000001,
+          1.1725,
+          4.32
+        ]
+      ]
+    },
+    {
+      "name": "ENV_building_noodle",
+      "file": "environment/ENV_building_noodle.obj",
+      "triangles": 212,
+      "bounds": [
+        [
+          -0.9850000000000001,
+          -0.9850000000000001,
+          0.0
+        ],
+        [
+          0.9850000000000001,
+          1.77,
+          3.04
+        ]
+      ]
+    },
+    {
+      "name": "ENV_building_repair",
+      "file": "environment/ENV_building_repair.obj",
+      "triangles": 220,
+      "bounds": [
+        [
+          -0.9850000000000001,
+          -0.9850000000000001,
+          0.0
+        ],
+        [
+          0.9850000000000001,
+          1.1725,
+          4.14
+        ]
+      ]
+    },
+    {
+      "name": "ENV_building_hotel",
+      "file": "environment/ENV_building_hotel.obj",
+      "triangles": 316,
+      "bounds": [
+        [
+          -0.9850000000000001,
+          -0.9850000000000001,
+          0.0
+        ],
+        [
+          0.9850000000000001,
+          1.1725,
+          6.04
+        ]
+      ]
+    },
+    {
+      "name": "ENV_building_transit",
+      "file": "environment/ENV_building_transit.obj",
+      "triangles": 184,
+      "bounds": [
+        [
+          -0.9850000000000001,
+          -0.9850000000000001,
+          0.0
+        ],
+        [
+          0.9850000000000001,
+          1.1725,
+          4.02
+        ]
+      ]
+    },
+    {
+      "name": "ENV_building_tower",
+      "file": "environment/ENV_building_tower.obj",
+      "triangles": 424,
+      "bounds": [
+        [
+          -0.9850000000000001,
+          -2.46,
+          0.0
+        ],
+        [
+          0.9850000000000001,
+          2.6475,
+          9.32
+        ]
+      ]
+    },
+    {
+      "name": "ENV_building_ramen",
+      "file": "environment/ENV_building_ramen.obj",
+      "triangles": 212,
+      "bounds": [
+        [
+          -0.9850000000000001,
+          -0.9850000000000001,
+          0.0
+        ],
+        [
+          0.9850000000000001,
+          1.77,
+          3.2399999999999998
+        ]
+      ]
+    },
+    {
+      "name": "ENV_building_market",
+      "file": "environment/ENV_building_market.obj",
+      "triangles": 404,
+      "bounds": [
+        [
+          -2.46,
+          -0.9850000000000001,
+          0.0
+        ],
+        [
+          2.46,
+          1.77,
+          4.64
+        ]
+      ]
+    },
+    {
+      "name": "ENV_building_relay",
+      "file": "environment/ENV_building_relay.obj",
+      "triangles": 232,
+      "bounds": [
+        [
+          -0.9850000000000001,
+          -0.9850000000000001,
+          0.0
+        ],
+        [
+          0.9850000000000001,
+          1.1725,
+          5.120000000000001
+        ]
+      ]
+    },
+    {
+      "name": "ENV_building_stacks",
+      "file": "environment/ENV_building_stacks.obj",
+      "triangles": 316,
+      "bounds": [
+        [
+          -0.9850000000000001,
+          -0.9850000000000001,
+          0.0
+        ],
+        [
+          0.9850000000000001,
+          1.1725,
+          6.24
+        ]
+      ]
+    },
+    {
+      "name": "ENV_building_west",
+      "file": "environment/ENV_building_west.obj",
+      "triangles": 268,
+      "bounds": [
+        [
+          -0.96,
+          -0.9850000000000001,
+          0.0
+        ],
+        [
+          0.96,
+          1.1725,
+          5.74
+        ]
+      ]
+    },
+    {
+      "name": "ENV_building_east",
+      "file": "environment/ENV_building_east.obj",
+      "triangles": 268,
+      "bounds": [
+        [
+          -0.9850000000000001,
+          -0.9850000000000001,
+          0.0
+        ],
+        [
+          0.9850000000000001,
+          1.1725,
+          5.24
+        ]
+      ]
+    },
+    {
+      "name": "ENV_building_south",
+      "file": "environment/ENV_building_south.obj",
+      "triangles": 268,
+      "bounds": [
+        [
+          -0.9850000000000001,
+          -0.9850000000000001,
+          0.0
+        ],
+        [
+          0.9850000000000001,
+          1.1725,
+          4.9399999999999995
+        ]
+      ]
+    },
+    {
+      "name": "ENV_building_north",
+      "file": "environment/ENV_building_north.obj",
+      "triangles": 232,
+      "bounds": [
+        [
+          -0.9850000000000001,
+          -0.96,
+          0.0
+        ],
+        [
+          0.9850000000000001,
+          1.1475,
+          5.32
+        ]
+      ]
+    },
+    {
+      "name": "ENV_road_straight",
+      "file": "environment/ENV_road_straight.obj",
+      "triangles": 48,
+      "bounds": [
+        [
+          -2.0,
+          -2.0,
+          -0.12
+        ],
+        [
+          2.0,
+          2.0,
+          0.015
+        ]
+      ]
+    },
+    {
+      "name": "ENV_road_crossing",
+      "file": "environment/ENV_road_crossing.obj",
+      "triangles": 84,
+      "bounds": [
+        [
+          -2.0,
+          -2.0,
+          -0.12
+        ],
+        [
+          2.0,
+          2.0,
+          0.015
+        ]
+      ]
+    },
+    {
+      "name": "ENV_road_junction",
+      "file": "environment/ENV_road_junction.obj",
+      "triangles": 72,
+      "bounds": [
+        [
+          -2.0,
+          -2.0,
+          -0.12
+        ],
+        [
+          2.0,
+          2.0,
+          0.015
+        ]
+      ]
+    },
+    {
+      "name": "ENV_road_corner",
+      "file": "environment/ENV_road_corner.obj",
+      "triangles": 48,
+      "bounds": [
+        [
+          -2.0,
+          -2.0,
+          -0.12
+        ],
+        [
+          2.0,
+          2.0,
+          0.015
+        ]
+      ]
+    },
+    {
+      "name": "ENV_road_sidewalk",
+      "file": "environment/ENV_road_sidewalk.obj",
+      "triangles": 60,
+      "bounds": [
+        [
+          -2.0,
+          -2.0,
+          -0.12
+        ],
+        [
+          2.0,
+          2.0,
+          0.16
+        ]
+      ]
+    },
+    {
+      "name": "ENV_road_alley",
+      "file": "environment/ENV_road_alley.obj",
+      "triangles": 12,
+      "bounds": [
+        [
+          -2.0,
+          -2.0,
+          -0.12
+        ],
+        [
+          2.0,
+          2.0,
+          0.0
+        ]
+      ]
+    },
+    {
+      "name": "ENV_prop_streetlamp",
+      "file": "environment/ENV_prop_streetlamp.obj",
+      "triangles": 80,
+      "bounds": [
+        [
+          -0.21,
+          -0.21,
+          0
+        ],
+        [
+          0.21,
+          0.9650000000000001,
+          3.62
+        ]
+      ]
+    },
+    {
+      "name": "ENV_prop_bollard",
+      "file": "environment/ENV_prop_bollard.obj",
+      "triangles": 56,
+      "bounds": [
+        [
+          -0.16,
+          -0.16,
+          0
+        ],
+        [
+          0.16,
+          0.16,
+          0.7
+        ]
+      ]
+    },
+    {
+      "name": "ENV_prop_barrier",
+      "file": "environment/ENV_prop_barrier.obj",
+      "triangles": 48,
+      "bounds": [
+        [
+          -1.05,
+          -0.4,
+          0
+        ],
+        [
+          1.05,
+          0.4,
+          0.95
+        ]
+      ]
+    },
+    {
+      "name": "ENV_prop_dumpster",
+      "file": "environment/ENV_prop_dumpster.obj",
+      "triangles": 60,
+      "bounds": [
+        [
+          -0.6900000000000001,
+          -0.44,
+          0.0
+        ],
+        [
+          0.6900000000000001,
+          0.44000000000000006,
+          1.1800000000000002
+        ]
+      ]
+    },
+    {
+      "name": "ENV_prop_crate",
+      "file": "environment/ENV_prop_crate.obj",
+      "triangles": 60,
+      "bounds": [
+        [
+          -0.44,
+          -0.44,
+          0.0
+        ],
+        [
+          0.44,
+          0.44000000000000006,
+          0.88
+        ]
+      ]
+    },
+    {
+      "name": "ENV_prop_vent",
+      "file": "environment/ENV_prop_vent.obj",
+      "triangles": 60,
+      "bounds": [
+        [
+          -0.49,
+          -0.38999999999999996,
+          0.0
+        ],
+        [
+          0.49,
+          0.39,
+          0.6799999999999999
+        ]
+      ]
+    },
+    {
+      "name": "ENV_prop_terminal",
+      "file": "environment/ENV_prop_terminal.obj",
+      "triangles": 36,
+      "bounds": [
+        [
+          -0.35,
+          -0.29,
+          0.0
+        ],
+        [
+          0.35,
+          0.29000000000000004,
+          1.78
+        ]
+      ]
+    },
+    {
+      "name": "ENV_prop_camera",
+      "file": "environment/ENV_prop_camera.obj",
+      "triangles": 36,
+      "bounds": [
+        [
+          -0.145,
+          -0.10500000000000001,
+          0.0
+        ],
+        [
+          0.145,
+          0.5750000000000001,
+          0.53
+        ]
+      ]
+    },
+    {
+      "name": "ENV_prop_pipe",
+      "file": "environment/ENV_prop_pipe.obj",
+      "triangles": 84,
+      "bounds": [
+        [
+          -0.2,
+          -0.2,
+          0
+        ],
+        [
+          0.2,
+          0.2,
+          2
+        ]
+      ]
+    },
+    {
+      "name": "ENV_prop_bench",
+      "file": "environment/ENV_prop_bench.obj",
+      "triangles": 48,
+      "bounds": [
+        [
+          -0.85,
+          -0.31,
+          0.0
+        ],
+        [
+          0.85,
+          0.3,
+          1.07
+        ]
+      ]
+    },
+    {
+      "name": "ENV_prop_neon_sign",
+      "file": "environment/ENV_prop_neon_sign.obj",
+      "triangles": 48,
+      "bounds": [
+        [
+          -0.26,
+          -0.08,
+          0.0
+        ],
+        [
+          0.26,
+          0.1075,
+          1.6
+        ]
+      ]
+    },
+    {
+      "name": "ENV_prop_manhole",
+      "file": "environment/ENV_prop_manhole.obj",
+      "triangles": 80,
+      "bounds": [
+        [
+          -0.45,
+          -0.45,
+          -0.04
+        ],
+        [
+          0.45,
+          0.45,
+          0.024
+        ]
+      ]
+    }
+  ]
+}

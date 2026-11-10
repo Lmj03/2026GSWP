@@ -144,7 +144,7 @@ def check_obj(path):
     return triangles
 
 
-def check_buildings(art, catalog):
+def check_buildings(folder, catalog):
     """Check the authored geometry/placement contract, without executing the renderer."""
     entries = {entry['name']: entry for entry in catalog['environment']}
     sizes = set()
@@ -156,7 +156,7 @@ def check_buildings(art, catalog):
         asset = entries['ENV_building_' + fields[1]]
         x, y, width, depth, height = map(float, fields[2:7])
         source = []
-        for line in (art / 'LowPoly' / asset['file']).read_text().splitlines():
+        for line in (folder / asset['file']).read_text(encoding='utf-8').splitlines():
             words = line.split()
             if words and words[0] == 'v':
                 source.append(tuple(map(float, words[1:])))
@@ -195,10 +195,49 @@ def check_buildings(art, catalog):
           f'zoom .7/1.15/1.65 fits cached target sizes {sorted(sizes)}.')
 
 
+def check_packaged_environment():
+    folder = ROOT / 'SimpleGame/Data/Environment'
+    catalog = json.loads((folder / 'catalog.json').read_text(encoding='utf-8'))
+    assert catalog['version'] == 1 and catalog['axis'] == 'Z_UP_Y_FORWARD'
+    entries = {entry['name']: entry for entry in catalog['environment']}
+    assert len(entries) == len(catalog['environment'])
+    roads = {f'ENV_road_{name}' for name in ('straight', 'crossing', 'junction', 'corner', 'sidewalk', 'alley')}
+    props = {f'ENV_prop_{name}' for name in ('streetlamp', 'bollard', 'barrier', 'dumpster', 'crate',
+                                            'vent', 'terminal', 'camera', 'pipe', 'bench', 'neon_sign', 'manhole')}
+    assert roads | props <= entries.keys()
+    for name, entry in entries.items():
+        path = folder / entry['file']
+        assert path.parent == folder / 'environment' and path.stem == name
+        assert check_obj(path) == entry['triangles']
+    assert {path.stem for path in (folder / 'environment').glob('*.obj')} == entries.keys()
+    # The 4x4 road slab must have complete upward-facing base triangles at height zero.
+    # This detects inverted normals or holes before using the shared ground rendering path.
+    for name in roads:
+        lines = [row.split() for row in (folder / entries[name]['file']).read_text(encoding='utf-8').splitlines()]
+        vertices = [tuple(map(float, row[1:])) for row in lines if row and row[0] == 'v']
+        normals = [tuple(map(float, row[1:])) for row in lines if row and row[0] == 'vn']
+        area = 0
+        for row in lines:
+            if not row or row[0] != 'f':
+                continue
+            corners = [token.split('/') for token in row[1:]]
+            points = [vertices[int(corner[0]) - 1] for corner in corners]
+            if all(abs(p[2]) < 1e-6 for p in points) and all(normals[int(corner[-1]) - 1][2] > .9 for corner in corners):
+                a, b, c = points
+                area += abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2
+        assert abs(area - 16) < 1e-6, (name, area)
+    check_buildings(folder, catalog)
+    print(f'Packaged environment OK: {len(entries)} models, shared material, and 6 complete road slabs.')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--art', type=Path, default=ROOT / '.modeling-dev/Art')
+    parser.add_argument('--packaged-only', action='store_true', help='Check the tracked runtime environment without the art worktree')
     arguments = parser.parse_args()
+    check_packaged_environment()
+    if arguments.packaged_only:
+        return
     art = arguments.art.resolve()
     manifest = json.loads((art / 'Characters/manifest.json').read_text(encoding='utf-8'))
     catalog = json.loads((art / 'LowPoly/catalog.json').read_text(encoding='utf-8'))
@@ -221,7 +260,7 @@ def main():
         assert entry['name'] not in ids
         ids.add(entry['name'])
         assert check_obj(art / 'LowPoly' / entry['file']) == entry['triangles']
-    check_buildings(art, catalog)
+    check_buildings(art / 'LowPoly', catalog)
     ns = {'ms': 'http://schemas.microsoft.com/developer/msbuild/2003'}
     for name in ('SimpleGame.vcxproj', 'SimpleGame.vcxproj.filters'):
         project = ET.parse(ROOT / 'SimpleGame' / name)

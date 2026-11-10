@@ -11,8 +11,9 @@ GLB/OBJ 모델의 공통 로딩·스키닝·Actor별 재생은 [MODEL_ASSET_LOAD
 world
   player — player/attack
   streamed
-    terrain/<청크 좌표>
-    building/<ID> — reflection
+    terrain/<청크 좌표> — 공유 도로/보도 표면 메시
+    building/<ID> — reflection, decoration(일부 건물)
+    environment/prop/<청크 좌표>
     citizen/<ID>
     enemy/generated/<청크>/mob/<번호> — loot, warning
   authored
@@ -53,6 +54,8 @@ ID는 비어 있지 않고 유일해야 한다. 삭제 예약 중인 ID는 해�
 월드 원점은 기존 64비트 청크 좌표로 유지한다. `WorldPosition`은 거대한 절대 좌표가 아니라 현재 원점 근처의 작은 장면 좌표다. `streamed`의 객체는 원점 이동 시 다시 배치하고, `authored` 루트는 원점만큼 반대로 이동한다. 스토리 가해자·거점·보급 상자는 수제 배치 좌표를 유지한다. 일반 몹은 streamed 아래 생성하며 위치·귀환점·공격 예고를 작은 장면 좌표로 관리하고 원점 이동량을 함께 차감한다. EnemyLocal은 이 두 좌표계를 명시적으로 구분한다. 해당 게임 로직은 이 좌표 규칙을 전제로 하므로 이 노드를 임의의 좌표계로 옮기려면 상호작용·전투 좌표 변환도 함께 변경해야 한다.
 
 스트리밍은 좌표에서 만든 ID로 기존 Actor를 재사용하고, 활성 범위에서 벗어난 Actor와 그 자식을 삭제한다. 방문한 모든 청크를 계속 보관하지 않는다. 수제 배치와 주민의 도움 기억 데이터는 기존 방식으로 유지한다.
+
+거리 소품은 마을 청크 안의 보도에서만 선택하며 건물과 임무 위치를 피한다. 부착 장식은 건물의 자식으로 이동·삭제된다. 도로·보도는 TerrainActor가 공유 정적 메시를 그린다. [환경 모델 연결](ENVIRONMENT_MODELS.md)을 참고한다.
 
 ## 파일 책임
 

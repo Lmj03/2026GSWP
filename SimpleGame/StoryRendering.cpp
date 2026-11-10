@@ -117,7 +117,7 @@ void CityScene::DrawStoryNode(Renderer& r, const std::string& id, Point position
     {
         r.Ellipse(p, 20 * s, 7 * s, Color(.16f, .06f, .09f, .6f));
     }
-    if (id == "terminal")
+    if (id == "terminal" && !DrawEnvironmentModel(r, m_terminalModel, position, .66f))
     {
         r.Rect(p.x - 5 * s, p.y - 26 * s, 10 * s, 26 * s, Color(.10f, .15f, .2f));
         r.Rect(p.x - 4 * s, p.y - 23 * s, 8 * s, 10 * s, Color(.1f, .7f, .75f, 1, 1));
