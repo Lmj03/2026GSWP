@@ -467,20 +467,25 @@ bool LoadObj(const std::wstring& file, Asset& output, std::string& error)
                 std::istringstream materialLines(
                     std::string(materialBytes.begin(), materialBytes.end()));
                 std::string name;
-                while (std::getline(materialLines, line))
+                std::string materialLine;
+                while (std::getline(materialLines, materialLine))
                 {
-                    std::istringstream fields(line);
-                    fields >> command;
-                    if (command == "newmtl")
+                    std::istringstream fields(materialLine.substr(0, materialLine.find('#')));
+                    std::string property;
+                    if (!(fields >> property))
                     {
-                        fields >> name;
+                        continue;
+                    }
+                    if (property == "newmtl")
+                    {
+                        Require(bool(fields >> name), "missing MTL material name");
                         materials[name] = Vertex();
                     }
-                    else if (command == "Kd" || command == "Ke")
+                    else if (property == "Kd" || property == "Ke")
                     {
                         Require(!name.empty(), "MTL color before material");
                         float* target =
-                            command == "Kd" ? materials[name].color : materials[name].emission;
+                            property == "Kd" ? materials[name].color : materials[name].emission;
                         Require(bool(fields >> target[0] >> target[1] >> target[2]),
                                 "invalid MTL color");
                         for (size_t i = 0; i < 3; ++i)
@@ -489,13 +494,13 @@ bool LoadObj(const std::wstring& file, Asset& output, std::string& error)
                                     "invalid MTL color value");
                         }
                     }
-                    else if (command == "d")
+                    else if (property == "d")
                     {
                         float alpha = 0;
                         Require(bool(fields >> alpha) && alpha == 1,
                                 "transparent OBJ materials unsupported");
                     }
-                    else if (command.compare(0, 4, "map_") == 0)
+                    else if (property.compare(0, 4, "map_") == 0)
                     {
                         throw std::runtime_error("textured OBJ materials unsupported");
                     }
